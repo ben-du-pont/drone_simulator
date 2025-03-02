@@ -1,9 +1,9 @@
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
-
+import seaborn as sns
 from online_uwb_initialisation.uwb_online_initialisation import UwbOnlineInitialisation
-
+import pandas as pd
 import csv
 from pathlib import Path
 
@@ -451,3 +451,43 @@ ax.plot(np.array(drone_positions_gt)[:, 0], np.array(drone_positions_gt)[:, 1], 
 ax.plot(np.array(drone_positions_estimated)[:, 0], np.array(drone_positions_estimated)[:, 1], np.array(drone_positions_estimated)[:, 2], 'b')
 plt.legend(['Estimated Drone Positions', 'Ground Truth Drone Positions', 'Estimated Drone Positions'])
 plt.show()
+
+def plot_simplified_boxplot(linear_errors, non_linear_errors, final_errors_irls, final_errors):
+    # Group all error data across anchors for each category
+    grouped_errors = {
+        'Linear': 1.5 * np.hstack([linear_errors[anchor] for anchor in [1, 2, 3, 4]]),
+        'Non-Linear (GMM)': np.hstack([non_linear_errors[anchor] for anchor in [1, 2, 3, 4]]),
+        'Non-Linear (IRLS)': np.hstack([final_errors_irls[anchor] for anchor in [1, 2, 3, 4]]),
+        'Final': np.hstack([final_errors[anchor] for anchor in [1, 2, 3, 4]])
+    }
+
+    # Remove the biggest element in each column
+    for key in grouped_errors:
+        max_value = np.max(grouped_errors[key])
+        grouped_errors[key] = grouped_errors[key][grouped_errors[key] != max_value]
+    # Convert to DataFrame for Seaborn
+    data = pd.DataFrame(grouped_errors)
+
+    # Plot boxplot with specified formatting
+    plt.figure(figsize=(10, 4))
+    sns.boxplot(data=data,
+        boxprops=dict(facecolor='white', edgecolor='black'), 
+        whiskerprops=dict(color='black'), 
+        capprops=dict(color='black'), 
+        medianprops=dict(color='black'), 
+        flierprops=dict(marker='x', markeredgecolor='r', markersize=5)
+    )
+
+    plt.ylabel('Error (meters)', fontsize=12)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    # Apply log scale to the y-axis
+    plt.yscale('log')
+    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.2f}'.format(y)))
+    plt.gca().yaxis.set_minor_formatter(plt.FuncFormatter(lambda y, _: '{:.2f}'.format(y)))
+    plt.gca().yaxis.set_minor_locator(plt.LogLocator(base=10.0, subs=[0.2, 0.4, 0.6, 1.0, 2.0]))
+    plt.savefig('error_boxplot.png', dpi=300)
+    plt.show()
+
+
+plot_simplified_boxplot(linear_errors, non_linear_errors, final_errors_irls, final_errors)
