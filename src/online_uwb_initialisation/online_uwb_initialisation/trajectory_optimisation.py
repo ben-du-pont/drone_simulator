@@ -317,7 +317,7 @@ class TrajectoryOptimization:
         for i in range(max_waypoints):
 
             # On the first iteration, use double the radius of search ??
-            current_radius = radius_of_search * 1 if i == 0 else radius_of_search
+            current_radius = radius_of_search * 2 if i == 0 else radius_of_search
 
             def objective(new_measurement):
                 new_measurement = self.spherical_to_cartesian(current_radius, new_measurement[0], new_measurement[1], last_measurement)

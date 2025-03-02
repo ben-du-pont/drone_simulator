@@ -75,7 +75,7 @@ class UwbOnlineInitialisation:
         self.anchor_measurements_dictionary = {}
 
         # Optimiser class instance to call to run the optimisation procedure
-        self.trajectory_optimiser = TrajectoryOptimization(method="FIM",  bounds=[(-1.5, 1.5), (-3.0, 3.0), (0.5, 2.0)], default_fim_noise_variance=0.4) 
+        self.trajectory_optimiser = TrajectoryOptimization(method="FIM")#,  bounds=[(-1.5, 1.5), (-3.0, 3.0), (0.5, 2.0)], default_fim_noise_variance=0.4) 
 
         # Trajectory to follow
         self.passed_waypoints = []
@@ -1004,7 +1004,7 @@ class UwbOnlineInitialisation:
 
                 # Compute the scale (MAD-based)
                 scale = compute_scale(residuals)
-                print("IRLS SCALE", scale)
+                # print("IRLS SCALE", scale)
                 # Use Tukey's biweight function for weights
                 weights = huber_weights_function(residuals, scale)
 
@@ -1114,7 +1114,7 @@ class UwbOnlineInitialisation:
                 """
                 Refine estimates using a more efficient M-estimator with a lower tuning constant.
                 """
-                print("initial scale", initial_scale)
+                # print("initial scale", initial_scale)
                 def huber_weights_function(residuals, scale, c):
                     scaled_residuals = residuals / scale
                     abs_scaled_residuals = np.abs(scaled_residuals)
@@ -1311,6 +1311,7 @@ class UwbOnlineInitialisation:
             print("sigma_nlos:", result.x[7])
             print("mu_los:", result.x[8])
             print("mu_nlos:", result.x[9])
+            print("\n")
             
             initial_params = np.hstack([initial_object_pos, initial_guess_beta, pi_los, sigma_los, 1, sigma_nlos, 1, mu_los, mu_nlos])
             result = minimize(
@@ -1487,6 +1488,7 @@ class UwbOnlineInitialisation:
             print("alpha_nlos:", result.x[7])
             print("mu_los:", result.x[8])
             print("mu_nlos:", result.x[9])
+            print("\n")
 
             # Extract estimated position and parameters
             estimated_position = result.x[:3]
@@ -1739,7 +1741,7 @@ class UwbOnlineInitialisation:
         for anchor_id in self.anchor_to_optimise_queue.keys():
             anchor_position = self.anchor_to_optimise_queue[anchor_id]
             dist = np.linalg.norm(np.array(drone_position) - np.array(anchor_position))
-            print(f"Distance between drone and anchor {anchor_id}: {dist}, the anchor is at {anchor_position}")
+            # print(f"Distance between drone and anchor {anchor_id}: {dist}, the anchor is at {anchor_position}")
             if dist < distance:
                 distance = dist
                 closest_anchor_id = anchor_id
@@ -1747,11 +1749,20 @@ class UwbOnlineInitialisation:
 
         print(f"Closest anchor is {closest_anchor_id} with distance {distance}, to drone at {drone_position}")
         
-
-        # sort by name
-        sorted_anchor_ids = sorted(anchor_ids)
-        #return sorted_anchor_ids[0]
-        return closest_anchor_id
+        if len(self.current_link_waypoints) == 0:
+            # sort by name
+            sorted_anchor_ids = sorted(anchor_ids)
+            #return sorted_anchor_ids[0]
+            return closest_anchor_id
+        # Maybe it is actually closer to return to the link waypoint instead of directly initializing the anchor.
+        elif np.linalg.norm(np.array(drone_position) - np.array(self.current_link_waypoints[-1])) < distance:
+            print("However, returning to the link waypoint is closer")
+            return None
+        else:
+            # sort by name
+            sorted_anchor_ids = sorted(anchor_ids)
+            #return sorted_anchor_ids[0]
+            return closest_anchor_id
 
 
 
@@ -1793,7 +1804,7 @@ class UwbOnlineInitialisation:
             anchor_measurement_dictionary = self.anchor_measurements_dictionary[anchor_id] # Extract the anchor's dictionnary 
             number_of_measurements = len(anchor_measurement_dictionary["distances_pre_rough_estimate"])
 
-            if number_of_measurements > 20: # Threshold to start the rough estimates
+            if number_of_measurements > 15: # Threshold to start the rough estimates
                 
                 # Transform the measurements from the positions and range measurements to tuples
                 measurements = []
@@ -1858,6 +1869,7 @@ class UwbOnlineInitialisation:
                 # Check if the stopping criterion is achieved based on the variables calculated above
                 if self.stopping_criterion_check(number_of_measurements, anchor_measurement_dictionary, choose_criterion=self.params["stopping_criteria"]): # choose_criterion=["condition_number","consecutive_distances_vector"]):
                     print("Stopping criterion achieved for anchor ", anchor_id)
+                    print("Stopping criterion: ", self.params["stopping_criteria"])
                     # If the stopping criterion is achieved, we can now refine the rough estimate with a non-linear least squares
 
                     self.drone_position = drone_position
@@ -1876,18 +1888,27 @@ class UwbOnlineInitialisation:
                         self.anchor_to_optimise_queue[anchor_id] = anchor_measurement_dictionary["estimator"][:3] # Add the anchor to the optimisation queue, meaning it is ready to be optimised for an optimal trajectory
                         return None
                     
+                    self.anchor_to_optimise_queue[anchor_id] = anchor_measurement_dictionary["estimator"][:3]
+                    if anchor_id != self.find_closest_anchor_in_optimisation_queue(drone_position):
+                        # If this anchor is not the closest, exit as we would prefer to optimise for the closest anchor
+                        return None
+
+                    if anchor_id in self.anchor_to_optimise_queue.keys():
+                        del self.anchor_to_optimise_queue[anchor_id]
+
+
                     # If the drone is not on an optimal trajectory, we can start the trajectory optimisation
 
                     previous_measurement_positions = anchor_measurement_dictionary["positions_pre_rough_estimate"]
 
                     initial_remaining_waypoints = self.remaining_waypoints
-                    print("Initial remaining waypoints: ", initial_remaining_waypoints)
+                    # print("Initial remaining waypoints: ", initial_remaining_waypoints)
 
                     self.trajectory_optimiser.method = self.params["trajectory_optimisation_method"]
                     link_method = self.params["link_method"]
 
                     # Optimize the trajectory using the previous measurements and the rough estimate of the anchor 
-                    optimal_waypoints = self.trajectory_optimiser.optimize_waypoints_incrementally_spherical(drone_position, estimator, anchor_estimate_variance, previous_measurement_positions, initial_remaining_waypoints, radius_of_search = 0.2, max_waypoints=20, marginal_gain_threshold=0.0001)
+                    optimal_waypoints = self.trajectory_optimiser.optimize_waypoints_incrementally_spherical(drone_position, estimator, anchor_estimate_variance, previous_measurement_positions, initial_remaining_waypoints, radius_of_search = 0.2, max_waypoints=20, marginal_gain_threshold=0.02)
                     
                     return_waypoints = None
                     if link_method == "optimal":
@@ -1913,8 +1934,8 @@ class UwbOnlineInitialisation:
                     
                    
 
-                    self.current_optimal_waypoints = optimal_waypoints
-                    self.anchor_measurements_dictionary[anchor_id]["optimal_waypoints"] = optimal_waypoints
+                    self.current_optimal_waypoints = optimal_waypoints.copy()
+                    self.anchor_measurements_dictionary[anchor_id]["optimal_waypoints"] = deepcopy(optimal_waypoints)
 
                     self.current_link_waypoints = link_waypoints
                     self.remaining_waypoints = full_waypoints # mission_waypoints
@@ -2036,7 +2057,7 @@ class UwbOnlineInitialisation:
                 link_method = self.params["link_method"]
                 
                 # Optimize the trajectory using the previous measurements and the rough estimate of the anchor 
-                optimal_waypoints = self.trajectory_optimiser.optimize_waypoints_incrementally_spherical(optimal_trajectory_starting_point, estimator, anchor_estimate_variance, previous_measurement_positions, initial_remaining_waypoints, radius_of_search = 0.2, max_waypoints=20, marginal_gain_threshold=0.0001)
+                optimal_waypoints = self.trajectory_optimiser.optimize_waypoints_incrementally_spherical(optimal_trajectory_starting_point, estimator, anchor_estimate_variance, previous_measurement_positions, initial_remaining_waypoints, radius_of_search = 0.2, max_waypoints=20, marginal_gain_threshold=0.02)
                 return_waypoints = None
                 if link_method == "optimal":
                     optimal_waypoints, return_waypoints = self.trajectory_optimiser.optimize_return_waypoints_incrementally_spherical(optimal_waypoints[-1], estimator, anchor_estimate_variance, previous_measurement_positions, initial_remaining_waypoints[0], radius_of_search = 0.2, max_waypoints=20, marginal_gain_threshold=0.01, lambda_penalty=1)
@@ -2051,8 +2072,8 @@ class UwbOnlineInitialisation:
                 if return_waypoints is not None:
                     self.current_optimal_waypoints = optimal_waypoints + return_waypoints
                 else:
-                    self.current_optimal_waypoints = optimal_waypoints
-                    self.anchor_measurements_dictionary[anchor_id]["optimal_waypoints"] = optimal_waypoints
+                    self.current_optimal_waypoints = optimal_waypoints.copy()
+                    self.anchor_measurements_dictionary[anchor_id]["optimal_waypoints"] = deepcopy(optimal_waypoints)
 
                 self.current_link_waypoints = link_waypoints
                 self.remaining_waypoints = full_waypoints # mission_waypoints

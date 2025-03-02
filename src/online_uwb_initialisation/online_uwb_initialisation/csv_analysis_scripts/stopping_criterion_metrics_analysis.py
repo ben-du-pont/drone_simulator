@@ -11,6 +11,8 @@ import seaborn as sns
 from mpl_toolkits.mplot3d import Axes3D
 
 from sklearn.cluster import KMeans
+from scipy.stats import pearsonr, spearmanr
+from scipy.spatial.distance import euclidean
 
 package_path = Path(__file__).parent.parent.resolve()
 csv_dir = package_path / 'csv_files'
@@ -395,6 +397,99 @@ def extract_final_values(df, columns):
     
     return pd.DataFrame(final_values)
 
+def extract_values_from_threshold_validation(df, columns, thresholds, merged_columns_idx=None):
+    """
+    Find the first value of each metric that falls below its threshold and extract it, 
+    along with the associated error. Also finds the first index where multiple metrics 
+    meet their thresholds simultaneously.
+
+    Parameters:
+        df (pd.DataFrame): Input DataFrame with metric columns and 'error_vector'.
+        columns (list): List of metric columns to analyze.
+        thresholds (list or array): List of thresholds corresponding to `columns`.
+        merged_columns_idx (list, optional): Indices of `columns` to consider for 
+                                             simultaneous threshold crossing.
+
+    Returns:
+        result_df (pd.DataFrame): DataFrame containing first below-threshold values, indices, and errors.
+        correlations (dict): Dictionary of Pearson correlations between each metric and its associated error.
+    """
+    final_values = {}
+
+    # --- Keep Original Data Copy ---
+    df_original = df.copy()
+
+    for j, col in enumerate(columns):
+        col_threshold = thresholds[j] if isinstance(thresholds, (list, np.ndarray)) else thresholds
+
+        def find_first_below_threshold(lst):
+            """Find first value and index where the list falls below the threshold."""
+            for i, val in enumerate(lst):
+                if val <= col_threshold:
+                    return val, i
+            return np.nan, np.nan  # If no values fall below the threshold
+
+        results = df[col].apply(find_first_below_threshold)
+        
+        # Store results separately, don't overwrite df[col]
+        df[f'{col}_error_index'] = results.apply(lambda x: x[1])  # Extract indices
+        df[f'{col}_below_threshold'] = results.apply(lambda x: x[0])  # Extract values
+
+        # Extract corresponding error values from error_vector
+        df[f'{col}_error'] = df.apply(
+            lambda row: row['error_vector'][int(row[f'{col}_error_index'])] 
+            if not np.isnan(row[f'{col}_error_index']) else np.nan, 
+            axis=1
+        )
+
+        # Store in final_values
+        final_values[f'{col}_below_threshold'] = df[f'{col}_below_threshold']
+        final_values[f'{col}_error_index'] = df[f'{col}_error_index']
+        final_values[f'{col}_error'] = df[f'{col}_error']
+
+    # --- Find the First Common Threshold Index ---
+    if merged_columns_idx is not None:
+        merged_cols = [columns[i] for i in merged_columns_idx]
+        merged_thresholds = [thresholds[i] for i in merged_columns_idx]
+
+        def find_common_threshold_index(row):
+            """Find the first index where all selected metrics meet their thresholds."""
+            indices = []
+            for i, col in enumerate(merged_cols):
+                for idx, val in enumerate(row[col]):  # Now `row[col]` is still a list
+                    if val <= merged_thresholds[i]:
+                        indices.append(idx)
+                        break  # Only take the first occurrence
+            
+            return max(indices) if len(indices) == len(merged_cols) else np.nan
+
+        df['merged_threshold_index'] = df_original.apply(find_common_threshold_index, axis=1)
+
+        # Extract associated error at this merged index
+        df['merged_threshold_error'] = df.apply(
+            lambda row: row['error_vector'][int(row['merged_threshold_index'])] 
+            if not np.isnan(row['merged_threshold_index']) else np.nan, 
+            axis=1
+        )
+
+        # Store in final_values
+        final_values['merged_threshold_index'] = df['merged_threshold_index']
+        final_values['merged_threshold_error'] = df['merged_threshold_error']
+
+    # --- Convert to DataFrame ---
+    result_df = pd.DataFrame(final_values)
+
+    # --- Compute Correlations ---
+    correlations = {}
+    for col in columns:
+        if f'{col}_below_threshold' in result_df and f'{col}_error' in result_df:
+            correlation = result_df[f'{col}_below_threshold'].corr(result_df[f'{col}_error'])
+            correlations[f'{col}_correlation'] = correlation
+
+    return result_df, correlations
+
+
+
 metrics_columns = ['gdop_vector', 'inverse_fim_vector', 'condition_number_vector', 'residuals_vector', 'covariances_vector', 'verification_vector']
 final_values_df = extract_final_values(data, metrics_columns)
 
@@ -435,6 +530,123 @@ correlations = compute_correlations(final_values_df, metrics_columns)
 print("Correlations between metrics and final error:")
 for metric, corr in correlations.items():
     print(f"{metric}: Pearson={corr['Pearson']:.3f}, Spearman={corr['Spearman']:.3f}")
+
+
+def compute_series_correlations(df, columns):
+    """
+    Compute correlations between the full evolution of each metric and its associated error series.
+    Returns a DataFrame with correlation values for each metric.
+    """
+    correlation_results = {}
+
+    for col in columns:
+        pearson_corrs, spearman_corrs = [], []
+
+        for _, row in df.iterrows():
+
+            metric_series = row[col]
+            error_series = row['error_vector']
+            
+
+            if not isinstance(metric_series, (list, np.ndarray)) or not isinstance(error_series, (list, np.ndarray)):
+                print(type(metric_series))
+                print(type(error_series))
+                print("Skipping")
+                continue  # Skip rows where data is not a valid list/array
+
+            # Convert to NumPy arrays
+            metric_series = np.array(metric_series, dtype=np.float64)
+            error_series = np.array(error_series, dtype=np.float64)
+
+            # Ensure series are valid and have matching lengths
+            if len(metric_series) != len(error_series) or len(metric_series) == 0:
+                continue  # Skip invalid data
+
+            # Compute Pearson correlation (linear relationship)
+            try:
+                pearson_corr, _ = pearsonr(metric_series, error_series)
+            except:
+                pearson_corr = np.nan  # Handle errors if series are constant
+
+            # Compute Spearman correlation (monotonic relationship)
+            try:
+                spearman_corr, _ = spearmanr(metric_series, error_series)
+            except:
+                spearman_corr = np.nan
+
+
+            # Store results
+            pearson_corrs.append(pearson_corr)
+            spearman_corrs.append(spearman_corr)
+
+        # Store the mean correlation across all rows for each metric
+        correlation_results[f'{col}_pearson'] = np.nanmean(pearson_corrs)
+        correlation_results[f'{col}_spearman'] = np.nanmean(spearman_corrs)
+
+    return correlation_results
+
+# Example usage
+correlations = compute_series_correlations(data, metrics_columns)
+print(correlations)
+
+metrics_columns = ['gdop_vector', 'inverse_fim_vector', 'condition_number_vector', 'covariances_vector', 'verification_vector']
+thresholds = [2.5, 1, 120, 0.9, 2.5, 0.5]
+merged_columns_idx = [0, 2, 3, 4]
+associated_errors_df, correlations = extract_values_from_threshold_validation(data, metrics_columns, thresholds, merged_columns_idx)
+print(correlations)
+print(associated_errors_df.keys())
+
+
+def plot_boxplots(result_df, columns):
+    """
+    Generates boxplots for error values corresponding to each metric and the merged metric.
+
+    Parameters:
+        result_df (pd.DataFrame): DataFrame containing error values.
+        columns (list): List of metric columns.
+    """
+    
+    # --- Prepare Data for Boxplots ---
+    error_cols = [f"{col}_error" for col in columns] + ["merged_threshold_error"]
+
+    # Clean titles for the boxplots
+    clean_titles = {
+        'gdop_vector_error': 'GDOP',
+        'inverse_fim_vector_error': 'FIM',
+        'condition_number_vector_error': 'Condition Number',
+        'residuals_vector_error': 'Residuals Error',
+        'covariances_vector_error': 'Covariance',
+        'verification_vector_error': 'Internal constraint',
+        'merged_threshold_error': 'Merged criterion'
+    }
+
+    # Set up subplots
+    plt.figure(figsize=(10, 4))
+    print("Columns in result_df:", result_df.columns)
+    print("Error columns:", error_cols)
+    
+    # --- Error Boxplot ---
+    sns.boxplot(
+        data=result_df[error_cols], 
+        boxprops=dict(facecolor='white', edgecolor='black'), 
+        whiskerprops=dict(color='black'), 
+        capprops=dict(color='black'), 
+        medianprops=dict(color='black'), 
+        flierprops=dict(marker='x', markeredgecolor='r', markersize=5)
+    )
+    plt.ylabel("Estimation error", fontsize=12)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+    plt.xticks(ticks=range(len(error_cols)), labels=[clean_titles[col] for col in error_cols], rotation=0)
+    plt.yscale('log')
+    
+    # Save plot as PNG
+    plt.tight_layout()
+    plt.savefig('boxplots_stopping_criterion.png')
+    plt.show()
+
+# Example Usage
+plot_boxplots(associated_errors_df, metrics_columns)
 
 
 from sklearn.linear_model import LinearRegression

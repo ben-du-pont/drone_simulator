@@ -69,7 +69,7 @@ class CalculateOnlineInitialisation:
 
         self.optimal_trajectories = {}
         self.optimal_waypoints = {}
-
+        self.optimal_deviation = {}
         self.drone_trajectory = None
 
         self.randomise_environment()
@@ -121,8 +121,8 @@ class CalculateOnlineInitialisation:
         self.drone_sim.drone_trajectory = Trajectory(1, 0.05)
 
         trajectory_height = 1
-        start_position = [1.25, -2.8, 0]
-        hover_position = [1.25, -2.8, trajectory_height]
+        start_position = [2, -2.8, 0]
+        hover_position = [2, -2.8, trajectory_height]
         intermediate_position = [2, -1.7, trajectory_height]
         opposite_position = [-1.25, 2.8, trajectory_height]
         hover_position2 = [1.25, -2.8, trajectory_height]
@@ -365,13 +365,15 @@ class CalculateOnlineInitialisation:
         """Function to check if the drone is close to a waypoint and if so, update the remaining waypoints."""
         if self.uwb_online_initialisation.remaining_waypoints:
             if np.linalg.norm(np.array(drone_position) - np.array(self.uwb_online_initialisation.remaining_waypoints[0])) < 0.01:
+                
                 self.uwb_online_initialisation.passed_waypoints.append(self.uwb_online_initialisation.remaining_waypoints[0])
                 self.uwb_online_initialisation.remaining_waypoints.pop(0)
 
                 last_waypoint = self.uwb_online_initialisation.passed_waypoints[-1]
 
-                if last_waypoint in self.uwb_online_initialisation.current_optimal_waypoints:
+                if (last_waypoint in self.uwb_online_initialisation.current_optimal_waypoints):
                     self.uwb_online_initialisation.current_optimal_waypoints.remove(last_waypoint)
+
                     
                 print(f"Waypoint reached, {len(self.uwb_online_initialisation.remaining_waypoints)} remaining")
 
@@ -605,7 +607,7 @@ class CalculateOnlineInitialisation:
 
         anchor = next(anchor for anchor in self.drone_sim.unknown_anchors if anchor.anchor_ID == anchor_id)
 
-
+        print("INTIIAL WAYPOINTS", self.uwb_online_initialisation.remaining_waypoints)
         while True:
             iteration += 1
 
@@ -719,9 +721,25 @@ class CalculateOnlineInitialisation:
 
 
 
+        # Ensure each component is explicitly converted to a list
+        optimal_waypoints = list(self.uwb_online_initialisation.current_optimal_waypoints)
+        link_waypoints = list(self.uwb_online_initialisation.current_link_waypoints)
+        remaining_waypoints = list(self.uwb_online_initialisation.remaining_waypoints)
 
-        full_waypoints = self.uwb_online_initialisation.current_optimal_waypoints + self.uwb_online_initialisation.current_link_waypoints + self.uwb_online_initialisation.remaining_waypoints
-        full_waypoints = [Waypoint(*waypoint) for waypoint in full_waypoints]
+        # print("OPTIMAL WAYPOINTS:", optimal_waypoints)
+        # print("LINK WAYPOINTS:", link_waypoints)
+        # print("REMAINING WAYPOINTS:", remaining_waypoints)
+
+        # Concatenate them safely
+        full_waypoints = optimal_waypoints + link_waypoints + remaining_waypoints
+
+        # print("Type of full_waypoints:", type(full_waypoints))
+        # print("Length of full_waypoints:", len(full_waypoints))
+
+        for i, waypoint in enumerate(full_waypoints):
+            print(f"Index {i}: Type = {type(waypoint)}, Value = {waypoint}")
+
+        full_waypoints = [Waypoint(*full_waypoints[i]) for i in range(len(full_waypoints))]
 
         optimal_trajectory = Trajectory(0.1, 0.05)
         optimal_trajectory.construct_trajectory_linear(full_waypoints)
@@ -772,9 +790,10 @@ class CalculateOnlineInitialisation:
                     distance = anchor.request_distance(drone_x, drone_y, drone_z)
                     optimal_waypoints = self.uwb_online_initialisation.measurement_callback([drone_x, drone_y, drone_z], distance, anchor_id)
 
-                    if optimal_waypoints is not None and len(optimal_waypoints) > 1:    
-                        self.optimal_waypoints[anchor_id] = copy.deepcopy(optimal_waypoints)
+                    if optimal_waypoints is not None and len(optimal_waypoints) > 1:   
 
+                        self.optimal_waypoints[anchor_id] = copy.deepcopy(optimal_waypoints)
+                        # self.optimal_deviation[anchor_id] = 
                         # update the drone trajectory
                         drone_trajectory = Trajectory(1, 0.05)
                         optimal_waypoints = [Waypoint(*waypoint) for waypoint in optimal_waypoints]
@@ -794,6 +813,7 @@ class CalculateOnlineInitialisation:
                 if len(anchors_initialised) == len(anchor_ids):
                     print("All anchors are initialised")
                     print("Final drone position", [drone_x, drone_y, drone_z])
+                   
                     break
 
             else:
@@ -1255,7 +1275,7 @@ def run_simulation_stopping_metrics_comparison():
         calculate_online_initialisation.gather_measurements()
         measurement_vector = calculate_online_initialisation.measurement_vector[unknown_anchor.anchor_ID]
         length = len(measurement_vector)
-        measurement_vector = measurement_vector[:int(length//(2/4))]
+        # measurement_vector = measurement_vector[:int(length//(2/4))]
 
         measurement_vector_copy = copy.deepcopy(measurement_vector)
 
@@ -1531,6 +1551,60 @@ def run_simulation_trajectory_optimisation_comparison():
         print("Full estimator non-linear", full_estimator_non_linear)
         print("Full Ground truth", calculate_online_initialisation.drone_sim.unknown_anchors[0].get_anchor_gt_estimator())
         row = [error_linear, error_non_linear, error_final_FIM, error_final_GDOP]
+
+        calculate_online_initialisation.save_row_to_csv(path, row)
+
+def run_simulation_single_anchor_full():
+    """Run the simulation to gather measurements and metrics for the unknown anchor, using all space and all measurement available. (no stopping criterion)
+    The metrics are stored in a CSV file, ready to be analysed.
+    
+    GOAL: choose which metric is the more reliable and gives the more information to get the best estimation of the anchor position with minimal error.""" 
+
+    # Define the path of the csv to store the data
+    path = csv_dir / 'single_anchor_full.csv'
+
+    # iterate over environments
+    for environment in range(1000):
+        calculate_online_initialisation = CalculateOnlineInitialisation()
+        calculate_online_initialisation.randomise_environment()
+
+        unknown_anchor = calculate_online_initialisation.drone_sim.unknown_anchors[0]
+        calculate_online_initialisation.reset_metrics(unknown_anchor.anchor_ID)
+        calculate_online_initialisation.uwb_online_initialisation.trajectory = calculate_online_initialisation.drone_sim.drone_trajectory
+
+        calculate_online_initialisation.uwb_online_initialisation.params['rough_estimate_method'] = "linear_reweighted" # Method to use for the rough estimate, either simple_linear or linear_reweighted
+        calculate_online_initialisation.uwb_online_initialisation.params['stopping_criteria'] = ["GDOP", "covariance_thresh", "verification_vector_thresh"]
+        calculate_online_initialisation.uwb_online_initialisation.params['GDOP_thresh'] = 2.5
+        calculate_online_initialisation.uwb_online_initialisation.params['covariance_thresh'] = 1
+        calculate_online_initialisation.uwb_online_initialisation.params['verification_vector_thresh'] = 2
+
+        calculate_online_initialisation.uwb_online_initialisation.params['convergence_counter_threshold'] = 3
+        calculate_online_initialisation.uwb_online_initialisation.params['convergence_postion_thresh'] = 0.5
+
+        calculate_online_initialisation.uwb_online_initialisation.params['GDOP_ratio_thresh'] = float('inf')
+        calculate_online_initialisation.uwb_online_initialisation.params['covariance_ratio_thresh'] = float('inf')
+        calculate_online_initialisation.uwb_online_initialisation.params['convergence_postion_thresh'] = float('inf')
+        calculate_online_initialisation.uwb_online_initialisation.params['verification_vector_ratio_thresh'] = float('inf')
+        
+        calculate_online_initialisation.gather_measurements()
+        measurement_vector = calculate_online_initialisation.measurement_vector[unknown_anchor.anchor_ID]
+        length = len(measurement_vector)
+
+        measurement_vector_copy = copy.deepcopy(measurement_vector)
+
+        calculate_online_initialisation.run_pipeline_multiple_anchors(None, [unknown_anchor.anchor_ID])
+
+        noise = calculate_online_initialisation.drone_sim.unknown_anchors[0].noise_variance
+        outlier_probability = calculate_online_initialisation.drone_sim.unknown_anchors[0].outlier_probability
+
+        error_linear = calculate_online_initialisation.uwb_online_initialisation.calculate_position_error(unknown_anchor.get_anchor_coordinates(), calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[unknown_anchor.anchor_ID]["estimator_rough_linear"][:3])
+        error_non_linear = calculate_online_initialisation.uwb_online_initialisation.calculate_position_error(unknown_anchor.get_anchor_coordinates(), calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[unknown_anchor.anchor_ID]["estimator_rough_non_linear"][:3])
+        error_final = calculate_online_initialisation.uwb_online_initialisation.calculate_position_error(unknown_anchor.get_anchor_coordinates(), calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[unknown_anchor.anchor_ID]["estimator"][:3])
+
+        number_of_measurements = len(calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[unknown_anchor.anchor_ID]["positions_pre_rough_estimate"]) + len(calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[unknown_anchor.anchor_ID]["positions_post_rough_estimate"])
+        row = [number_of_measurements, noise, outlier_probability, error_linear, error_non_linear, error_final]
+
+        # row = [str(calculate_online_initialisation.gdop_vector[unknown_anchor.anchor_ID]), str([np.linalg.det(row) for row in calculate_online_initialisation.fim_vector[unknown_anchor.anchor_ID]]), str(calculate_online_initialisation.condition_number_vector[unknown_anchor.anchor_ID]), str(calculate_online_initialisation.residuals_vector[unknown_anchor.anchor_ID]), str([np.max(row[:3]) for row in calculate_online_initialisation.covariances_vector[unknown_anchor.anchor_ID]]), str(calculate_online_initialisation.verifications_vector[unknown_anchor.anchor_ID]), str(calculate_online_initialisation.pos_delta_vector[unknown_anchor.anchor_ID]), str(calculate_online_initialisation.error_vector[unknown_anchor.anchor_ID]), str(calculate_online_initialisation.constant_bias_error_vector[unknown_anchor.anchor_ID]), str(calculate_online_initialisation.linear_bias_error_vector[unknown_anchor.anchor_ID])]
 
         calculate_online_initialisation.save_row_to_csv(path, row)
 
@@ -2236,6 +2310,7 @@ def get_real_data_statistics():
 
     errors_linear = {"1": [], "2": [], "3": [], "4": [], "5": [], "6": []}
     errors_non_linear = {"1": [], "2": [], "3": [], "4": [], "5": [], "6": []}
+    stopping_criterions = {"1": [], "2": [], "3": [], "4": [], "5": [], "6": []}
     
     trajectories = []
     # extract one version of the trajectory
@@ -2307,6 +2382,25 @@ def get_real_data_statistics():
 
                 # setting = "linear_reweighted"
                 # calculate_online_initialisation.write_settings(setting)
+                calculate_online_initialisation.uwb_online_initialisation.params['stopping_criteria'] = ["GDOP", "covariance_thresh", "verification_vector_thresh"]
+                calculate_online_initialisation.uwb_online_initialisation.params['GDOP_thresh'] = 2.5
+                calculate_online_initialisation.uwb_online_initialisation.params['covariance_thresh'] = 1
+                calculate_online_initialisation.uwb_online_initialisation.params['verification_vector_thresh'] = 2
+
+                calculate_online_initialisation.uwb_online_initialisation.params['convergence_counter_threshold'] = 3
+                calculate_online_initialisation.uwb_online_initialisation.params['convergence_postion_thresh'] = 0.5
+
+                calculate_online_initialisation.uwb_online_initialisation.params['GDOP_ratio_thresh'] = float('inf')
+                calculate_online_initialisation.uwb_online_initialisation.params['covariance_ratio_thresh'] = float('inf')
+                calculate_online_initialisation.uwb_online_initialisation.params['convergence_postion_thresh'] = float('inf')
+                calculate_online_initialisation.uwb_online_initialisation.params['verification_vector_ratio_thresh'] = float('inf')
+
+                
+
+
+
+
+
 
 
                 calculate_online_initialisation.run_pipeline_pre_optimisation(measurement_vector, str(anchor_id_to_display))
@@ -2317,6 +2411,7 @@ def get_real_data_statistics():
                 distances = calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[unknown_anchor.anchor_ID]["distances_pre_rough_estimate"]
                 positions_optimal = calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[unknown_anchor.anchor_ID]["positions_post_rough_estimate"]
                 residual_vectors = calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[unknown_anchor.anchor_ID]["residual_vector"]
+                stopping_criterion_triggered = calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[unknown_anchor.anchor_ID]["status"] == "optimised_trajectory"
 
                 measurement_vector = []
                 for position, distance in zip(positions, distances):
@@ -2338,6 +2433,13 @@ def get_real_data_statistics():
 
                 errors_linear[str(anchor_id_to_display)].append(calculate_online_initialisation.uwb_online_initialisation.calculate_position_error(anchor_position, estimated_anchor_position_linear))
                 errors_non_linear[str(anchor_id_to_display)].append(calculate_online_initialisation.uwb_online_initialisation.calculate_position_error(anchor_position, estimated_anchor_position_non_linear))
+                stopping_criterions[str(anchor_id_to_display)].append(stopping_criterion_triggered)
+
+
+    # Calculate and print the mean and standard deviation of the errors
+    for i in range(1,7):
+        print(f"Anchor {i} - Linear - Mean: {np.mean(errors_linear[str(i)]):.2f} m, Std: {np.std(errors_linear[str(i)]):.2f} m")
+        print(f"Anchor {i} - Non-Linear - Mean: {np.mean(errors_non_linear[str(i)]):.2f} m, Std: {np.std(errors_non_linear[str(i)]):.2f} m")
 
     # Plot boxplots of the errors
     fig, ax = plt.subplots(4, 6, figsize=(15, 10))
@@ -2353,6 +2455,36 @@ def get_real_data_statistics():
                                         showfliers=False, 
                                         tick_labels=["Linear", "Non-Linear"], 
                                         positions=[1, 2])  # Positions to shift the two boxplots
+            
+            # Add title and labels
+            ax[trajectory-1, i-1].set_title(f"Anchor {i} - Trajectory {trajectory}")
+            ax[trajectory-1, i-1].set_ylabel("Error (m)")
+    plt.tight_layout()
+    plt.show()
+
+    # Calculate and print the mean and standard deviation of the errors with the stopping criterion mask
+    for i in range(1,7):
+        print(f"Anchor {i} - Linear - Mean: {np.mean([errors_linear[str(i)][idx] for idx, val in enumerate(stopping_criterions[str(i)]) if val]):.2f} m, Std: {np.std([errors_linear[str(i)][idx] for idx, val in enumerate(stopping_criterions[str(i)]) if val]):.2f} m")
+        print(f"Anchor {i} - Non-Linear - Mean: {np.mean([errors_non_linear[str(i)][idx] for idx, val in enumerate(stopping_criterions[str(i)]) if val]):.2f} m, Std: {np.std([errors_non_linear[str(i)][idx] for idx, val in enumerate(stopping_criterions[str(i)]) if val]):.2f} m")
+        # Print the improvement in error from the non masked to the masked errors
+        print(f"Improvement in error: {np.mean([errors_linear[str(i)][idx] for idx, val in enumerate(stopping_criterions[str(i)]) if val]) - np.mean(errors_linear[str(i)]):.2f} m")
+        print(f"Improvement in error: {np.mean([errors_non_linear[str(i)][idx] for idx, val in enumerate(stopping_criterions[str(i)]) if val]) - np.mean(errors_non_linear[str(i)]):.2f} m")
+        
+
+    # Plot boxplots only if the stopping criterion mask is True
+    fig, ax = plt.subplots(4, 6, figsize=(15, 10))
+
+    for i in range(1,7):
+        for trajectory in range(1,5):
+            # Extracting the error data
+            linear_errors = [errors_linear[str(i)][idx] for idx, val in enumerate(stopping_criterions[str(i)][trajectory-1:trajectory-1+10]) if val]
+            non_linear_errors = [errors_non_linear[str(i)][idx] for idx, val in enumerate(stopping_criterions[str(i)][trajectory-1:trajectory-1+10]) if val]
+            
+            # Plot both boxplots side by side on the same axis
+            ax[trajectory-1, i-1].boxplot([linear_errors, non_linear_errors], 
+                                        showfliers=False, 
+                                        tick_labels=["Linear", "Non-Linear"], 
+                                        positions=[1, 2])
             
             # Add title and labels
             ax[trajectory-1, i-1].set_title(f"Anchor {i} - Trajectory {trajectory}")
@@ -2459,9 +2591,96 @@ def run_simulation_drone_halle():
     z_vals = [z for x, y, z in all_measurements]
 
     # Create a scatter plot with a gradient color map
-    scatter = ax1.scatter(x_vals, y_vals, z_vals, c=np.arange(len(x_vals)), cmap='jet', label='All positions')
-    color_bar = plt.colorbar(scatter, ax=ax1, aspect=5)  # Reduce the height with aspect
-    color_bar.set_label('Drone trajectory measurement index')  # Set the title for the color bar
+    # scatter = ax1.scatter(x_vals, y_vals, z_vals, c=np.arange(len(x_vals)), cmap='jet', label='All positions')
+    # color_bar = plt.colorbar(scatter, ax=ax1, aspect=5)  # Reduce the height with aspect
+    # color_bar.set_label('Drone trajectory measurement index')  # Set the title for the color bar
+
+    # Sort the anchors by the number of measurements to find the order of initialisation
+    sorted_anchors = sorted(measurement_counts.keys(), key=lambda anchor_id: measurement_counts[anchor_id])
+
+    # Plot the optimal waypoints in calculate_online_initialisation.optimal_waypoints[anchor_id]
+    for anchor_id in sorted_anchors:
+        remaining_waypoints = calculate_online_initialisation.optimal_waypoints[anchor_id]
+        
+        optimal_waypoints = calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["optimal_waypoints"]
+
+        link_waypoint = []
+        previous_waypoint = []
+        # link waypoints are the missing waypoints from optimal waypoints
+        for waypoint in remaining_waypoints:
+            is_present = any(np.array_equal(waypoint, item) for item in optimal_waypoints)
+            
+            if not is_present:
+                link_waypoint.append(previous_waypoint)
+                break
+            previous_waypoint = waypoint
+
+
+
+
+        x_vals = [x for x, y, z in optimal_waypoints[:-1]]
+        y_vals = [y for x, y, z in optimal_waypoints[:-1]] 
+        z_vals = [z for x, y, z in optimal_waypoints[:-1]]
+
+
+        ax1.plot(x_vals, y_vals, z_vals, label=f'Optimal waypoints {int(anchor_id)+1}')
+
+        # plot in grey the first link waypoint
+        x_link_vals = [x for x, y, z in link_waypoint]
+        y_link_vals = [y for x, y, z in link_waypoint]
+        z_link_vals = [z for x, y, z in link_waypoint]
+
+        x_to_plot = [x_vals[-1]] + [x_link_vals[0]]
+        y_to_plot = [y_vals[-1]] + [y_link_vals[0]]
+        z_to_plot = [z_vals[-1]] + [z_link_vals[0]]
+
+        ax1.plot(x_to_plot, y_to_plot, z_to_plot, label=f'Link waypoints {int(anchor_id)+1}', c='grey')
+    
+    # Plot the return trajectory:
+    return_waypoints = []
+    for waypoint in remaining_waypoints:
+            is_present = any(np.array_equal(waypoint, item) for item in optimal_waypoints)
+            
+            if not is_present:
+                return_waypoints.append(waypoint)
+    
+    x_vals = [x for x, y, z in return_waypoints]
+    y_vals = [y for x, y, z in return_waypoints]
+    z_vals = [z for x, y, z in return_waypoints]
+
+    # Link back from the return point to the next waypoint
+    x_link_return = [x_link_vals[0]] + [x_vals[0]]
+    y_link_return = [y_link_vals[0]] + [y_vals[0]]
+    z_link_return = [z_link_vals[0]] + [z_vals[0]]
+
+    ax1.plot(x_link_return, y_link_return, z_link_return, label=f'Link waypoints {int(anchor_id)+1}', c='blue')
+
+
+    ax1.plot(x_vals, y_vals, z_vals, label=f'Return waypoints {int(anchor_id)+1}', c='blue')
+                
+        
+
+
+    
+
+
+    # # plot the anchor measurements in order of initialisation
+    # for anchor_id in sorted_anchors[0]:
+    #     positions = calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["positions_pre_rough_estimate"]
+    #     x_vals = [x for x, y, z in positions]
+    #     y_vals = [y for x, y, z in positions]
+    #     z_vals = [z for x, y, z in positions] 
+
+    #     ax1.plot(x_vals, y_vals, z_vals, label=f'Anchor {int(anchor_id)+1} positions')
+    
+    # for anchor_id in sorted_anchors:
+    #     positions = calculate_online_initialisation.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["positions_post_rough_estimate"]
+    #     x_vals = [x for x, y, z in positions[:-3]]
+    #     y_vals = [y for x, y, z in positions[:-3]]
+    #     z_vals = [z for x, y, z in positions[:-3]] 
+
+    #     ax1.plot(x_vals, y_vals, z_vals, label=f'Anchor {int(anchor_id)+1} positions')
+
 
     estimated_anchor_positions_linear = []
     estimated_anchor_positions_non_linear = []
@@ -2803,8 +3022,11 @@ if __name__ == '__main__':
 
     run_simulation_drone_halle()
     # monte_carlo_simulation_drone_halle()
-    run_simulation_real_data()
-    get_real_data_statistics()
+    # run_simulation_real_data()
+    # get_real_data_statistics()
+    # run_simulation_stopping_metrics_comparison()
+    # run_simulation_single_anchor_full()
+
 
     ### NOT WORKING
     # run_simulation_trajectory_optimisation_comparison()
@@ -2812,7 +3034,7 @@ if __name__ == '__main__':
 
     # run_simulation_regularisation()
     # run_simulation_reweighted_ls()
-    # run_simulation_stopping_metrics_comparison()
+    
     # run_simulation_stopping_criterion_sensitivity()
     
     # 
