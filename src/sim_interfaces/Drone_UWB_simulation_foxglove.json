@@ -1,0 +1,90 @@
+{
+  "configById": {
+    "3D!huzj2b": {
+      "cameraState": {
+        "perspective": true,
+        "distance": 18.049999999981697,
+        "phi": 54.35399551904068,
+        "thetaOffset": 90.16803584765783,
+        "targetOffset": [
+          2.505561464715904,
+          -0.9342070731508083,
+          8.334661258950276e-17
+        ],
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {
+        "/drone_sim/drone_trail": {
+          "visible": false
+        },
+        "/drone_sim/drone_marker": {
+          "visible": true
+        },
+        "/drone_sim/waypoints": {
+          "visible": true
+        },
+        "/drone_sim/drone_trajectory": {
+          "visible": true
+        },
+        "/drone_sim/optimized_trajectory": {
+          "visible": false
+        }
+      },
+      "layers": {
+        "grid": {
+          "visible": true,
+          "frameLocked": true,
+          "label": "Grid",
+          "instanceId": "d6085c75-1349-4970-b7c5-05c179af53a3",
+          "layerId": "foxglove.Grid",
+          "size": 10,
+          "divisions": 10,
+          "lineWidth": 1,
+          "color": "#248eff",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {}
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": "3D!huzj2b"
+}

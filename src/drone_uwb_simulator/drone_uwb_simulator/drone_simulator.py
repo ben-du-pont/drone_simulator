@@ -1,12 +1,10 @@
 import numpy as np
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Union
-from enum import Enum
+from typing import List, Tuple, Optional
+from enum import Enum, auto
 
-from drone_uwb_simulator.UWB_protocol import Anchor, BiasModel, NoiseModel, UWBNetwork
+from drone_uwb_simulator.UWB_protocol import Anchor, BiasModel, NoiseModel
 from drone_uwb_simulator.drone_dynamics import Waypoint, Trajectory
-
-
 
 
 @dataclass
@@ -15,34 +13,23 @@ class SimulationConfig:
     Configuration parameters for the drone simulation environment.
     
     Attributes:
-    -----------
-    dt : float
-        Time step for simulation in seconds.
-    drone_speed : float
-        Speed of the drone in meters per second.
-    num_waypoints : int
-        Number of waypoints to generate for random trajectories.
-    bounds : Tuple[float, float, float]
-        Environment boundaries as (x_bound, y_bound, z_bound) in meters.
+        dt: Time step for simulation in seconds.
+        drone_speed: Speed of the drone in meters per second.
+        num_waypoints: Number of waypoints to generate for random trajectories.
+        bounds: Environment boundaries as (x_bound, y_bound, z_bound) in meters.
     """
     dt: float = 0.05
     drone_speed: float = 1.0
     num_waypoints: int = 15
     bounds: Tuple[float, float, float] = (5.0, 5.0, 5.0)
 
-class WaypointGenerationMode(Enum):
-    """
-    Enumeration of available waypoint generation modes.
-    
-    Modes:
-    ------
-    MANUAL : Use manually specified waypoints
-    RANDOM : Generate random waypoints within bounds
-    OPPOSITE_EDGES : Generate waypoints on opposite edges of the environment
-    """
-    MANUAL = "manual"
-    RANDOM = "random"
-    OPPOSITE_EDGES = "opposite_edges"
+
+class WaypointMode(Enum):
+    """Enumeration of available waypoint generation modes."""
+    MANUAL = auto()
+    RANDOM = auto()
+    OPPOSITE_EDGES = auto()
+
 
 class DroneSimulation:
     """
@@ -52,32 +39,15 @@ class DroneSimulation:
     - Waypoint generation and trajectory planning
     - Base and unknown UWB anchor placement
     - Drone movement and position updates
-    
-    Attributes:
-    -----------
-    waypoints : List[Waypoint]
-        List of waypoints defining the drone's path.
-    base_anchors : List[Anchor]
-        Known UWB anchors in the environment.
-    unknown_anchors : List[Anchor]
-        UWB anchors to be estimated/discovered.
-    drone_trajectory : Trajectory
-        Computed trajectory through waypoints.
-    drone_position : np.ndarray
-        Current 3D position of the drone.
-    config : SimulationConfig
-        Configuration parameters for the simulation.
     """
     
     def __init__(self, config: Optional[SimulationConfig] = None):
         """
         Initialize the drone simulation environment.
         
-        Parameters:
-        -----------
-        config : SimulationConfig, optional
-            Configuration parameters for the simulation.
-            If None, default configuration is used.
+        Args:
+            config: Configuration parameters for the simulation.
+                   If None, default configuration is used.
         """
         self.config = config or SimulationConfig()
         
@@ -94,56 +64,61 @@ class DroneSimulation:
         # Set up the environment
         self.initialize_environment()
     
-    def generate_waypoints(self, mode: WaypointGenerationMode = WaypointGenerationMode.OPPOSITE_EDGES) -> List[Waypoint]:
+    def generate_waypoints(self, mode: WaypointMode = WaypointMode.OPPOSITE_EDGES) -> List[Waypoint]:
         """
         Generate waypoints according to the specified mode.
         
-        Parameters:
-        -----------
-        mode : WaypointGenerationMode
-            Method to use for generating waypoints.
+        Args:
+            mode: Method to use for generating waypoints.
             
         Returns:
-        --------
-        List[Waypoint]
-            Generated waypoints.
+            Generated list of waypoints.
         """
-        if mode == WaypointGenerationMode.RANDOM:
-            return self._generate_random_waypoints()
-        elif mode == WaypointGenerationMode.OPPOSITE_EDGES:
-            return self._generate_opposite_edges_waypoints()
-        else:
-            return self._generate_manual_waypoints()
+        waypoint_generators = {
+            WaypointMode.RANDOM: self._generate_random_waypoints,
+            WaypointMode.OPPOSITE_EDGES: self._generate_opposite_edges_waypoints,
+            WaypointMode.MANUAL: self._generate_manual_waypoints
+        }
+        
+        return waypoint_generators[mode]()
     
     def _generate_random_waypoints(self) -> List[Waypoint]:
         """Generate random waypoints within environment bounds."""
-        points = np.random.uniform(
-            low=[-self.config.bounds[0], -self.config.bounds[1], 0],
-            high=[self.config.bounds[0], self.config.bounds[1], self.config.bounds[2]],
+        bounds_x, bounds_y, bounds_z = self.config.bounds
+        
+        # Start at origin
+        waypoints = [Waypoint(0, 0, 0)]
+        
+        # Generate remaining random waypoints
+        random_points = np.random.uniform(
+            low=[-bounds_x, -bounds_y, 0],
+            high=[bounds_x, bounds_y, bounds_z],
             size=(self.config.num_waypoints - 1, 3)
         )
-        return [Waypoint(0, 0, 0)] + [
-            Waypoint(x, y, z) for x, y, z in points
-        ]
+        
+        for x, y, z in random_points:
+            waypoints.append(Waypoint(x, y, z))
+            
+        return waypoints
     
     def _generate_opposite_edges_waypoints(self) -> List[Waypoint]:
         """Generate waypoints on opposite edges of the environment."""
-        bx, by, bz = self.config.bounds
+        bounds_x, bounds_y, bounds_z = self.config.bounds
         
         # Generate first point on edge
-        x1 = np.random.choice([-bx, bx])
-        y1 = np.random.uniform(-by, by)
-        z1 = np.random.uniform(0, bz)
+        x1 = np.random.choice([-bounds_x, bounds_x])
+        y1 = np.random.uniform(-bounds_y, bounds_y)
+        z1 = np.random.uniform(0, bounds_z)
         
         # Generate opposite point
         x2 = -x1
-        y2 = np.random.choice([-by, by]) if abs(x1) == bx else np.random.uniform(-by, by)
-        z2 = bz - z1
+        y2 = np.random.choice([-bounds_y, bounds_y]) if abs(x1) == bounds_x else np.random.uniform(-bounds_y, bounds_y)
+        z2 = bounds_z - z1
         
         # Generate intermediate points
         middle_points = np.random.uniform(
-            low=[-bx/2, -by/2, 0],
-            high=[bx/2, by/2, bz/2],
+            low=[-bounds_x/2, -bounds_y/2, 0],
+            high=[bounds_x/2, bounds_y/2, bounds_z/2],
             size=(3, 3)
         )
         
@@ -174,42 +149,39 @@ class DroneSimulation:
         Initialize both base (known) and unknown UWB anchors.
         
         Returns:
-        --------
-        Tuple[List[Anchor], List[Anchor]]
-            Base anchors and unknown anchors.
+            Tuple of (base_anchors, unknown_anchors).
         """
-        # Initialize base anchors
+        # Common bias and noise models for all anchors
         bias_model = BiasModel(0.0951, 1.0049)
         noise_model = NoiseModel(0.2, 0.05, (0.2, 0.3))
 
+        # Base anchors with fixed positions
         base_anchors = [
-            Anchor("0", -1, -1, 0, bias_model, noise_model),
-            Anchor("1", 1, 0, 0, bias_model, noise_model),
-            Anchor("2", 0, 3, 0, bias_model, noise_model),
-            Anchor("3", 0, 6, 0, bias_model, noise_model)
+            Anchor("0", [-1, -1, 0], bias_model, noise_model),
+            Anchor("1", [1, 0, 0], bias_model, noise_model),
+            Anchor("2", [0, 3, 0], bias_model, noise_model),
+            Anchor("3", [0, 6, 0], bias_model, noise_model)
         ]
         
-        # Initialize unknown anchors with random placement
-        bx, by, bz = self.config.bounds
+        # Unknown anchors with random placement
+        bounds_x, bounds_y, _ = self.config.bounds
         unknown_position = np.random.uniform(
-            low=[-bx, -by, 0],
-            high=[bx, by, 0]
+            low=[-bounds_x, -bounds_y, 0],
+            high=[bounds_x, bounds_y, 0]
         )
         
         unknown_anchors = [
-            Anchor("4", *unknown_position, bias_model, noise_model),
+            Anchor("4", unknown_position, bias_model, noise_model),
         ]
         
         return base_anchors, unknown_anchors
     
-    def initialize_environment(self, waypoint_mode: WaypointGenerationMode = WaypointGenerationMode.OPPOSITE_EDGES):
+    def initialize_environment(self, waypoint_mode: WaypointMode = WaypointMode.OPPOSITE_EDGES):
         """
         Initialize the complete simulation environment.
         
-        Parameters:
-        -----------
-        waypoint_mode : WaypointGenerationMode
-            Method to use for generating waypoints.
+        Args:
+            waypoint_mode: Method to use for generating waypoints.
         """
         # Generate waypoints
         self.waypoints = self.generate_waypoints(waypoint_mode)
@@ -222,35 +194,36 @@ class DroneSimulation:
             speed=self.config.drone_speed,
             dt=self.config.dt
         )
-        self.drone_trajectory.construct_trajectory_linear(self.waypoints)
+        self.drone_trajectory.construct_trajectory(self.waypoints)
         
         # Set initial drone position
         self.drone_position = np.array(self.waypoints[0].get_coordinates())
+        self.drone_progress = 0
     
-    def update_drone_position_kinematic(self) -> np.ndarray:
+    def update_drone_position(self) -> np.ndarray:
         """
         Update the drone position according to the trajectory.
         
         Returns:
-        --------
-        np.ndarray
             New drone position [x, y, z].
         """
-        if self.drone_progress < len(self.drone_trajectory.spline_x):
+        trajectory_length = len(self.drone_trajectory.points_x)
+        
+        if self.drone_progress < trajectory_length:
             new_position = np.array([
-                self.drone_trajectory.spline_x[self.drone_progress],
-                self.drone_trajectory.spline_y[self.drone_progress],
-                self.drone_trajectory.spline_z[self.drone_progress]
+                self.drone_trajectory.points_x[self.drone_progress],
+                self.drone_trajectory.points_y[self.drone_progress],
+                self.drone_trajectory.points_z[self.drone_progress]
             ])
             self.drone_progress += 1
         else:
             # Reset to start if end is reached
             new_position = np.array([
-                self.drone_trajectory.spline_x[0],
-                self.drone_trajectory.spline_y[0],
-                self.drone_trajectory.spline_z[0]
+                self.drone_trajectory.points_x[0],
+                self.drone_trajectory.points_y[0],
+                self.drone_trajectory.points_z[0]
             ])
-            self.drone_progress = 0
+            self.drone_progress = 1  # Set to 1 to advance on next update
         
         self.drone_position = new_position
         return new_position
@@ -260,32 +233,45 @@ class DroneSimulation:
         Get waypoints that haven't been visited yet.
         
         Returns:
-        --------
-        List[Waypoint]
-            Unvisited waypoints.
+            List of unvisited waypoints.
         """
-        current_index = np.argmin([
-            np.linalg.norm(self.drone_position - np.array([x, y, z]))
-            for x, y, z in zip(
-                self.drone_trajectory.spline_x,
-                self.drone_trajectory.spline_y,
-                self.drone_trajectory.spline_z
-            )
-        ])
+        if not self.drone_trajectory:
+            return self.waypoints
+            
+        # Find closest point on trajectory to current position
+        trajectory_points = np.column_stack((
+            self.drone_trajectory.points_x,
+            self.drone_trajectory.points_y,
+            self.drone_trajectory.points_z
+        ))
         
-        waypoint_indices = [
-            np.argmin([
-                np.linalg.norm(np.array(wp.get_coordinates()) - np.array([x, y, z]))
-                for x, y, z in zip(
-                    self.drone_trajectory.spline_x,
-                    self.drone_trajectory.spline_y,
-                    self.drone_trajectory.spline_z
-                )
-            ])
-            for wp in self.waypoints
-        ]
+        distances = np.linalg.norm(trajectory_points - self.drone_position, axis=1)
+        current_index = np.argmin(distances)
         
+        # Map each waypoint to its closest point on the trajectory
+        waypoint_indices = []
+        for wp in self.waypoints:
+            wp_coords = np.array(wp.get_coordinates())
+            wp_distances = np.linalg.norm(trajectory_points - wp_coords, axis=1)
+            waypoint_indices.append(np.argmin(wp_distances))
+        
+        # Return waypoints that are ahead on the trajectory
         return [
             wp for wp, idx in zip(self.waypoints, waypoint_indices)
             if idx > current_index
         ]
+
+    def reset_simulation(self, waypoint_mode: Optional[WaypointMode] = None):
+        """
+        Reset the simulation with optionally new waypoint generation mode.
+        
+        Args:
+            waypoint_mode: If provided, use this mode to generate new waypoints.
+                          If None, keep the same waypoints.
+        """
+        if waypoint_mode is not None:
+            self.initialize_environment(waypoint_mode)
+        else:
+            # Just reset position to beginning
+            self.drone_position = np.array(self.waypoints[0].get_coordinates())
+            self.drone_progress = 0

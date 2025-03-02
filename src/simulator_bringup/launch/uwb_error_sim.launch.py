@@ -19,6 +19,6 @@ def generate_launch_description():
         )
     
     ld.add_action(sim_node)
-    ld.add_action(error_calculator_node)
+    # ld.add_action(error_calculator_node)
 
     return ld
