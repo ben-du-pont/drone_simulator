@@ -3,13 +3,13 @@
     "3D!huzj2b": {
       "cameraState": {
         "perspective": true,
-        "distance": 18.049999999981697,
-        "phi": 54.35399551904068,
-        "thetaOffset": 90.16803584765783,
+        "distance": 18.04999999991519,
+        "phi": 57.58028379386844,
+        "thetaOffset": 65.70201643020418,
         "targetOffset": [
-          2.505561464715904,
-          -0.9342070731508083,
-          8.334661258950276e-17
+          2.2316171948786967,
+          -1.3960703987239405,
+          5.669032720904618e-17
         ],
         "target": [
           0,
@@ -31,7 +31,12 @@
       "transforms": {},
       "topics": {
         "/drone_sim/drone_trail": {
-          "visible": false
+          "visible": true,
+          "lineWidth": 0.05,
+          "gradient": [
+            "#ff9f6bff",
+            "#7bff6b80"
+          ]
         },
         "/drone_sim/drone_marker": {
           "visible": true
@@ -40,7 +45,12 @@
           "visible": true
         },
         "/drone_sim/drone_trajectory": {
-          "visible": true
+          "visible": true,
+          "lineWidth": 0.01,
+          "gradient": [
+            "rgba(124, 107, 255, 1)",
+            "#7c6bffff"
+          ]
         },
         "/drone_sim/optimized_trajectory": {
           "visible": false
