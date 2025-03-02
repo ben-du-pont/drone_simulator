@@ -12,9 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-
         ('share/' + package_name, ['resource/drone_mesh.glb']),
-        ('share/' + package_name, ['resource/car_mesh.stl']),
         #(os.path.join('share', package_name, 'srv'), glob('srv/*.srv')),
     ],
     install_requires=['setuptools'],
