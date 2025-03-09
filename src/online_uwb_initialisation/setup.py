@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'uwb_online_initialisation = online_uwb_initialisation.uwb_online_initialisation_node:main',
+            'uwb_online_initialisation = online_uwb_initialisation.ros.uwb_online_initialisation_node:main',
         ],
     },
 )
