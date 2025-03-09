@@ -22,7 +22,8 @@ class EstimationMethod(Enum):
     NONLINEAR_LM = auto()
     NONLINEAR_IRLS = auto()
     NONLINEAR_EM = auto()
-    NONLINEAR_MM = auto()
+    NONLINEAR_GMM = auto()
+    NONLINEAR_KRR = auto()
 
 @dataclass
 class EstimationConfig:
@@ -122,7 +123,7 @@ class EstimationStrategy(ABC):
         """
         measurements = np.array(measurements)
         
-        # Normalized formulation (only works for both biases)
+        # Normalized formulation (only works for both biases for now)
         if self.config.normalised:
             A = []
             b = []
@@ -231,8 +232,8 @@ class EstimationStrategy(ABC):
             logger.warning("Error computing covariance matrix, using identity")
             return np.eye(A.shape[1])
     
-    def compute_verification_value(self, x: np.ndarray) -> float:
-        """Compute verification value for the estimated parameters.
+    def compute_internal_constraint(self, x: np.ndarray) -> float:
+        """Compute internal constraint for the estimated parameters.
         
         This is an internal consistency check specific to the UWB estimation problem.
         
@@ -240,7 +241,7 @@ class EstimationStrategy(ABC):
             x: Estimated parameters
             
         Returns:
-            Verification value
+            Internal constraint value
         """
         if self.config.use_constant_bias and self.config.use_linear_bias:
             x_a, y_a, z_a = x[:3]
@@ -249,7 +250,8 @@ class EstimationStrategy(ABC):
             p_a = x[5]
             
             norm_squared = np.linalg.norm([x_a, y_a, z_a])**2
-            verification = p_a - (gamma_beta_squared**2 / inv_beta_squared - norm_squared)
+            internal_constraint = p_a - (gamma_beta_squared**2 / inv_beta_squared - norm_squared)
+
             
         elif self.config.use_constant_bias:
             x_a, y_a, z_a = x[:3]
@@ -257,7 +259,7 @@ class EstimationStrategy(ABC):
             p_a_gamma = x[4]
             
             norm_squared = np.linalg.norm([x_a, y_a, z_a])**2
-            verification = p_a_gamma - norm_squared + gamma**2
+            internal_constraint = p_a_gamma - norm_squared + gamma**2
             
         elif self.config.use_linear_bias:
             x_a, y_a, z_a = x[:3]
@@ -265,16 +267,16 @@ class EstimationStrategy(ABC):
             neg_p_a = x[4]
             
             norm_squared = np.linalg.norm([x_a, y_a, z_a])**2
-            verification = norm_squared + neg_p_a
+            internal_constraint = norm_squared + neg_p_a
             
         else:
             x_a, y_a, z_a = x[:3]
             p_a = x[3]
             
             norm_squared = np.linalg.norm([x_a, y_a, z_a])**2
-            verification = p_a - norm_squared
+            internal_constraint = p_a - norm_squared
         
-        return float(np.abs(verification))
+        return float(np.abs(internal_constraint))
     
     def retrieve_estimator(self, x: np.ndarray) -> np.ndarray:
         """Extract the estimator parameters from the raw solution.
@@ -362,13 +364,11 @@ class EstimationStrategy(ABC):
         elif self.config.weighting_function == 'mad':
             c = self.config.tukey_c
             scaled_residuals = residuals / scale
-            weights_tukey = np.where(np.abs(scaled_residuals) <= c, 
-                                   (1 - (scaled_residuals/c)**2)**2, 
-                                   0)
+            
+            weights_tukey = np.where(np.abs(scaled_residuals) <= c, scaled_residuals*(1 - (scaled_residuals/c)**2)**2, 0)
+            
             # Avoid division by zero
-            weights = np.where(np.abs(scaled_residuals) < 1e-10, 
-                             1.0, 
-                             weights_tukey / np.abs(scaled_residuals))
+            weights = np.where(np.abs(scaled_residuals) < 1e-10, 1.0, weights_tukey / (scaled_residuals))
         else:
             # Default to inverse squared residuals
             weights = 1 / np.maximum(residuals**2, 1e-8)
@@ -390,7 +390,7 @@ class EstimationStrategy(ABC):
         
         x, y, z = target_coords
         A = []
-        
+            
         for measurement in measurements:
             x_i, y_i, z_i, _ = measurement
             R = np.linalg.norm([x_i - x, y_i - y, z_i - z])
@@ -406,20 +406,30 @@ class EstimationStrategy(ABC):
         A = np.array(A)
         
         try:
-            # Use SVD for better numerical stability
-            u, s, vh = np.linalg.svd(A, full_matrices=False)
-            
-            # Filter out near-zero singular values
-            s_inv = np.zeros_like(s)
-            mask = s > 1e-10
-            s_inv[mask] = 1.0 / s[mask]
-            
-            # Compute pseudoinverse and then get trace
-            inv_at_a = vh.T @ np.diag(s_inv**2) @ u.T
-            return np.sqrt(np.trace(inv_at_a))
-            
+
+            inv_at_a = np.linalg.inv(A.T @ A)
+            gdop = np.sqrt(np.trace(inv_at_a))
+            if gdop is not None:
+                return gdop
+            else:
+                return float('inf')
         except np.linalg.LinAlgError:
             return float('inf')
+        
+        #     # Use SVD for better numerical stability
+        #     u, s, vh = np.linalg.svd(A, full_matrices=False)
+            
+        #     # Filter out near-zero singular values
+        #     s_inv = np.zeros_like(s)
+        #     mask = s > 1e-10
+        #     s_inv[mask] = 1.0 / s[mask]
+            
+        #     # Compute pseudoinverse and then get trace
+        #     inv_at_a = vh.T @ np.diag(s_inv**2) @ u.T
+        #     return np.sqrt(np.trace(inv_at_a))
+            
+        # except np.linalg.LinAlgError:
+        #     return float('inf')
     
     def compute_fim(self, measurements: List[Tuple[float, float, float, float]], target_estimator: np.ndarray) -> np.ndarray:
         """Compute the Fisher Information Matrix.
@@ -540,8 +550,8 @@ class SimpleLinearEstimation(EstimationStrategy):
         # Retrieve estimator [x, y, z, constant_bias, linear_bias]
         estimator = self.retrieve_estimator(x)
         
-        # Compute verification value
-        verification_value = self.compute_verification_value(x)
+        # Compute internal constraint value
+        internal_constraint = self.compute_internal_constraint(x)
         
         # Compute GDOP
         gdop = self.compute_gdop(measurements, estimator[:3])
@@ -556,7 +566,7 @@ class SimpleLinearEstimation(EstimationStrategy):
             residuals=self.compute_residuals(A, b, x),
             raw_params=x,
             condition_number=condition_number,
-            verification_value=verification_value,
+            internal_constraint=internal_constraint,
             gdop=gdop,
             fim=fim,
             is_nonlinear=False
@@ -649,8 +659,8 @@ class LinearReweightedEstimation(EstimationStrategy):
         # Retrieve estimator [x, y, z, constant_bias, linear_bias]
         estimator = self.retrieve_estimator(x)
         
-        # Compute verification value
-        verification_value = self.compute_verification_value(x)
+        # Compute internal constraint value
+        internal_constraint = self.compute_internal_constraint(x)
         
         # Compute GDOP
         gdop = self.compute_gdop(measurements, estimator[:3])
@@ -665,7 +675,7 @@ class LinearReweightedEstimation(EstimationStrategy):
             residuals=residuals,
             raw_params=x,
             condition_number=condition_number,
-            verification_value=verification_value,
+            internal_constraint=internal_constraint,
             gdop=gdop,
             fim=fim,
             is_nonlinear=False,
@@ -703,14 +713,14 @@ class TrimmedReweightedEstimation(EstimationStrategy):
         A, b = self.setup_linear_least_square(measurements)
         
         # Compute threshold for trimming
-        threshold = np.percentile(weights, 100 * (1 - trim_fraction))
+        threshold = np.percentile(weights, 100 * (trim_fraction))
         
         # Create mask for trimming
-        mask = weights > threshold
+        mask = weights >= threshold
         
         # Skip trimming if we would remove too many measurements
         if np.sum(mask) < 4:  # Need at least 4 measurements
-            logger.warning("Not enough measurements after trimming, using all measurements")
+            logger.warning(f"Not enough measurements after trimming {np.sum(mask)} measurements, using all {len(measurements)} measurements")
             return result
         
         # Apply mask to A, b, and weights
@@ -774,8 +784,8 @@ class TrimmedReweightedEstimation(EstimationStrategy):
         # Retrieve estimator [x, y, z, constant_bias, linear_bias]
         estimator = self.retrieve_estimator(x)
         
-        # Compute verification value
-        verification_value = self.compute_verification_value(x)
+        # Compute internal constraint value
+        internal_constraint = self.compute_internal_constraint(x)
         
         # Find outliers (points that were trimmed)
         outliers = np.where(~mask)[0].tolist()
@@ -793,7 +803,7 @@ class TrimmedReweightedEstimation(EstimationStrategy):
             residuals=residuals,
             raw_params=x,
             condition_number=condition_number,
-            verification_value=verification_value,
+            internal_constraint=internal_constraint,
             gdop=gdop,
             fim=fim,
             outliers=outliers,
@@ -937,7 +947,7 @@ class NonlinearLMEstimation(EstimationStrategy):
                 residuals=residuals,
                 raw_params=x,
                 condition_number=float('inf'),  # Not directly applicable for nonlinear estimation
-                verification_value=float('inf'),  # Not directly applicable for nonlinear estimation
+                internal_constraint=float('inf'),  # Not directly applicable for nonlinear estimation
                 gdop=gdop,
                 fim=fim,
                 is_nonlinear=True,
@@ -1125,7 +1135,7 @@ class NonlinearIRLSEstimation(EstimationStrategy):
             residuals=best_residuals,
             raw_params=params,
             condition_number=float('inf'),  # Not directly applicable
-            verification_value=float('inf'),  # Not directly applicable
+            internal_constraint=float('inf'),  # Not directly applicable
             gdop=gdop,
             fim=fim,
             is_nonlinear=True,
@@ -1330,7 +1340,7 @@ class NonlinearEMEstimation(EstimationStrategy):
             residuals=final_residuals,
             raw_params=np.array([*current_position, mu_los, mu_nlos, sigma_los, sigma_nlos, pi_los]),
             condition_number=float('inf'),  # Not applicable for EM
-            verification_value=float('inf'),  # Not applicable for EM
+            internal_constraint=float('inf'),  # Not applicable for EM
             gdop=gdop,
             fim=fim,
             outliers=outliers,
@@ -1339,7 +1349,7 @@ class NonlinearEMEstimation(EstimationStrategy):
             converged=converged
         )
     
-class NonlinearMMEstimation(EstimationStrategy):
+class NonlinearGMMEstimation(EstimationStrategy):
     """Nonlinear estimation using Mixture Model with distance-dependent noise."""
     
     def estimate(self, measurements: List[Tuple[float, float, float, float]], 
@@ -1507,6 +1517,7 @@ class NonlinearMMEstimation(EstimationStrategy):
                 initial_params,
                 args=(measurements,),
                 method='L-BFGS-B',
+                # method='Nelder-Mead'
                 bounds=bounds
             )
             
@@ -1531,7 +1542,7 @@ class NonlinearMMEstimation(EstimationStrategy):
                 residuals=final_residuals,
                 raw_params=result.x,
                 condition_number=float('inf'),
-                verification_value=float('inf'),
+                internal_constraint=float('inf'),
                 gdop=gdop,
                 fim=fim,
                 is_nonlinear=True,
@@ -1577,8 +1588,8 @@ class EstimationFactory:
                     method = EstimationMethod.NONLINEAR_IRLS
                 elif method_upper == "NONLINEAR_EM" or method_upper == "EM" or method_upper == "EM_NEW":
                     method = EstimationMethod.NONLINEAR_EM
-                elif method_upper == "NONLINEAR_MM" or method_upper == "MM":
-                    method = EstimationMethod.NONLINEAR_MM
+                elif method_upper == "NONLINEAR_GMM" or method_upper == "GMM":
+                    method = EstimationMethod.NONLINEAR_GMM
                 else:
                     # Try direct enum lookup
                     method = EstimationMethod[method_upper]
@@ -1599,8 +1610,8 @@ class EstimationFactory:
             return NonlinearIRLSEstimation(config)
         elif method == EstimationMethod.NONLINEAR_EM:
             return NonlinearEMEstimation(config)
-        elif method == EstimationMethod.NONLINEAR_MM:
-            return NonlinearMMEstimation(config)
+        elif method == EstimationMethod.NONLINEAR_GMM:
+            return NonlinearGMMEstimation(config)
         else:
             logger.warning(f"Unsupported estimation method: {method}, falling back to LINEAR_REWEIGHTED")
             return LinearReweightedEstimation(config)

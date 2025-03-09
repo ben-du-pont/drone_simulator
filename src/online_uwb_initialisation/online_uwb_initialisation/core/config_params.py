@@ -56,8 +56,6 @@ class RoughEstimateMethod(Enum):
             return cls.SIMPLE_LINEAR
         elif method_upper == "LINEAR_REWEIGHTED":
             return cls.LINEAR_REWEIGHTED
-        elif method_upper == "EM_ALGORITHM":
-            return cls.EM_ALGORITHM
         else:
             logger.warning(f"Unknown rough estimate method: {method_str}, using LINEAR_REWEIGHTED")
             return cls.LINEAR_REWEIGHTED
@@ -65,10 +63,10 @@ class RoughEstimateMethod(Enum):
 
 class NonLinearOptimizationType(Enum):
     """Enumeration of nonlinear optimization methods."""
-    IRLS = auto()
     LM = auto()
-    KRR = auto()  # Kernel Ridge Regression
-    MM = auto()   # Majorize-Minimize
+    IRLS = auto()
+    KRR = auto()  # Kernel Ridge Regression (Was quite bad, not used)
+    GMM = auto()   # Gaussian Mixture Model
     EM = auto()   # Expectation-Maximization
     
     @classmethod
@@ -88,13 +86,13 @@ class NonLinearOptimizationType(Enum):
             return cls.LM
         elif method_upper == "KRR":
             return cls.KRR
-        elif method_upper == "MM" or method_upper == "MM_GAUSSIAN_MIXTURE":
-            return cls.MM
+        elif method_upper == "GMM" or method_upper == "GAUSSIAN_MIXTURE_MODEL":
+            return cls.GMM
         elif method_upper == "EM" or method_upper == "EM_NEW":
             return cls.EM
         else:
-            logger.warning(f"Unknown nonlinear optimization type: {method_str}, using EM")
-            return cls.EM
+            logger.warning(f"Unknown nonlinear optimization type: {method_str}, using GMM")
+            return cls.GMM
 
 
 class TrajectoryOptimizationMethod(Enum):
@@ -124,7 +122,7 @@ class TrajectoryOptimizationMethod(Enum):
 
 class LinkMethod(Enum):
     """Enumeration of methods for linking trajectory segments."""
-    STRICT_RETURN = auto()
+    STRICT_RETURN = auto() 
     RETURN_TO_INITIAL = auto()
     STRAIGHT_TO_WAYPOINT = auto()
     RETURN_TO_CLOSEST = auto()
@@ -193,7 +191,7 @@ class LeastSquaresConfig:
     outlier_removing: OutlierRemovalMethod = field(default_factory=lambda: OutlierRemovalMethod.NONE)
     """Method to use for outlier removal."""
     
-    reweighting_iterations: int = 5
+    reweighting_iterations: int = 4
     """Number of reweighting iterations for the reweighted least squares."""
     
     use_trimmed_reweighted: bool = True
@@ -212,7 +210,7 @@ class LeastSquaresConfig:
     """Parameter for Welsch weighting function."""
     
     non_linear_optimisation_type: NonLinearOptimizationType = field(
-        default_factory=lambda: NonLinearOptimizationType.EM
+        default_factory=lambda: NonLinearOptimizationType.GMM
     )
     """Type of non-linear optimization to use."""
 
@@ -239,8 +237,8 @@ class StoppingCriteriaConfig:
     covariance_thresh: float = 10.0
     """Threshold for the covariance."""
     
-    verification_vector_thresh: float = 10.0
-    """Threshold for the verification vector."""
+    internal_constraint_thresh: float = 10.0
+    """Threshold for the internal constraint."""
     
     number_of_measurements_thresh: int = 30
     """Threshold for the number of measurements."""
@@ -264,8 +262,8 @@ class StoppingCriteriaConfig:
     convergence_postion_thresh: float = 1.0
     """Threshold for the change in position estimate."""
     
-    verification_vector_ratio_thresh: float = 0.1
-    """Threshold for the ratio of consecutive verification vector values."""
+    internal_constraint_ratio_thresh: float = 0.1
+    """Threshold for the ratio of consecutive internal constraint values."""
     
     # Convergence counters
     convergence_counter_threshold: int = 3
@@ -279,7 +277,7 @@ class OutlierConfig:
     """Z-score threshold for outlier detection."""
     
     outlier_count_threshold: int = 3
-    """Number of consecutive outliers to remove a measurement when using the counter method."""
+    """Number of consecutive outlier classifications to remove a measurement when using the counter method."""
 
 
 @dataclass
@@ -383,8 +381,8 @@ class UwbInitializationConfig:
             config.stopping_criteria.condition_number_thresh = config_dict['condition_number_thresh']
         if 'covariance_thresh' in config_dict:
             config.stopping_criteria.covariance_thresh = config_dict['covariance_thresh']
-        if 'verification_vector_thresh' in config_dict:
-            config.stopping_criteria.verification_vector_thresh = config_dict['verification_vector_thresh']
+        if 'internal_constraint_thresh' in config_dict:
+            config.stopping_criteria.internal_constraint_thresh = config_dict['internal_constraint_thresh']
         if 'number_of_measurements_thresh' in config_dict:
             config.stopping_criteria.number_of_measurements_thresh = config_dict['number_of_measurements_thresh']
         if 'FIM_ratio_thresh' in config_dict:
@@ -399,8 +397,8 @@ class UwbInitializationConfig:
             config.stopping_criteria.covariance_ratio_thresh = config_dict['covariance_ratio_thresh']
         if 'convergence_postion_thresh' in config_dict:
             config.stopping_criteria.convergence_postion_thresh = config_dict['convergence_postion_thresh']
-        if 'verification_vector_ratio_thresh' in config_dict:
-            config.stopping_criteria.verification_vector_ratio_thresh = config_dict['verification_vector_ratio_thresh']
+        if 'internal_constraint_ratio_thresh' in config_dict:
+            config.stopping_criteria.internal_constraint_ratio_thresh = config_dict['internal_constraint_ratio_thresh']
         if 'convergence_counter_threshold' in config_dict:
             config.stopping_criteria.convergence_counter_threshold = config_dict['convergence_counter_threshold']
         
@@ -454,7 +452,7 @@ class UwbInitializationConfig:
             'residuals_thresh': self.stopping_criteria.residuals_thresh,
             'condition_number_thresh': self.stopping_criteria.condition_number_thresh,
             'covariance_thresh': self.stopping_criteria.covariance_thresh,
-            'verification_vector_thresh': self.stopping_criteria.verification_vector_thresh,
+            'internal_constraint_thresh': self.stopping_criteria.internal_constraint_thresh,
             'number_of_measurements_thresh': self.stopping_criteria.number_of_measurements_thresh,
             'FIM_ratio_thresh': self.stopping_criteria.FIM_ratio_thresh,
             'GDOP_ratio_thresh': self.stopping_criteria.GDOP_ratio_thresh,
@@ -462,7 +460,7 @@ class UwbInitializationConfig:
             'condition_number_ratio_thresh': self.stopping_criteria.condition_number_ratio_thresh,
             'covariance_ratio_thresh': self.stopping_criteria.covariance_ratio_thresh,
             'convergence_postion_thresh': self.stopping_criteria.convergence_postion_thresh,
-            'verification_vector_ratio_thresh': self.stopping_criteria.verification_vector_ratio_thresh,
+            'internal_constraint_ratio_thresh': self.stopping_criteria.internal_constraint_ratio_thresh,
             'convergence_counter_threshold': self.stopping_criteria.convergence_counter_threshold,
             
             # Outlier rejection parameters

@@ -17,6 +17,8 @@ from online_uwb_initialisation.core.anchor_data import AnchorData, AnchorStatus
 from online_uwb_initialisation.core.config_params import UwbInitializationConfig, TrajectoryOptimizationMethod, LinkMethod
 from online_uwb_initialisation.core.trajectory_manager import TrajectoryManager, TrajectoryState
 
+from online_uwb_initialisation.ros.uwb_config_loader import load_config_from_yaml
+
 # Import custom messages for the simulation
 from sim_interfaces.msg import (
     DronePosition, AnchorEstimate, OptimizedTrajectory, WaypointLists, AnchorInfo
@@ -31,7 +33,11 @@ class UwbOnlineInitialisationNode(Node):
         super().__init__('uwb_online_initialisation_node')
         
         # Core components
-        self.uwb_initializer = UwbInitializationPipeline()
+        # Load configuration from YAML
+        config = load_config_from_yaml(self)
+        
+        # Core components
+        self.uwb_initializer = UwbInitializationPipeline(config)
         self.base_anchors = {}
         self.unknown_anchors = {}
         self.anchor_status_dictionary = {}
@@ -105,6 +111,7 @@ class UwbOnlineInitialisationNode(Node):
             10
         )   
 
+    
     def _setup_publishers(self):
         """Set up ROS topic publishers."""
         namespace = self.get_parameter('namespace').get_parameter_value().string_value

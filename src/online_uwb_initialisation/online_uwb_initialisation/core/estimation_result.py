@@ -34,8 +34,8 @@ class EstimationResult:
     gdop: float = float('inf')
     """Geometric Dilution of Precision"""
     
-    verification_value: float = float('inf')
-    """Internal verification metric for consistency"""
+    internal_constraint: float = float('inf')
+    """Internal constraint for consistency"""
     
     outliers: List[int] = field(default_factory=list)
     """Indices of detected outliers"""
@@ -113,7 +113,7 @@ class EstimationResult:
             "condition_number": self.condition_number,
             "fim": self.fim,
             "gdop": self.gdop,
-            "verification_value": self.verification_value,
+            "internal_constraint": self.internal_constraint,
             "outliers": self.outliers,
             "iteration_count": self.iteration_count,
             "converged": self.converged,

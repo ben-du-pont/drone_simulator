@@ -1846,7 +1846,7 @@ class UwbOnlineInitialisation:
                 mean_residuals = np.median(np.abs(residuals))
                 condition_number = self.compute_condition_number(measurements)
                 covariances = np.diag(covariance_matrix)[:3]
-                verification_value = self.compute_verification_vector(x)
+                internal_constraint = self.compute_internal_constraint(x)
                 distance_delta = np.linalg.norm(np.array(estimator[:3]) - np.array(anchor_measurement_dictionary["estimator_rough_linear"][:3])) # Distance between two consecutive estimates
 
                 # Add them to the dictionnary for plotting
@@ -1855,7 +1855,7 @@ class UwbOnlineInitialisation:
                 anchor_measurement_dictionary["residuals"].append(mean_residuals)
                 anchor_measurement_dictionary["condition_number"].append(condition_number)
                 anchor_measurement_dictionary["covariances"].append(covariances)
-                anchor_measurement_dictionary["verification_vector"].append(np.abs(verification_value))
+                anchor_measurement_dictionary["internal_constraint"].append(np.abs(internal_constraint))
                 anchor_measurement_dictionary["residual_vector"].append(residuals)
                 anchor_measurement_dictionary["consecutive_distances_vector"].append(distance_delta)
 
@@ -1962,7 +1962,7 @@ class UwbOnlineInitialisation:
                 residuals = float('inf') # Mean of the residuals
                 condition_number = float('inf')
                 covariances = [float('inf'),float('inf'),float('inf')]
-                verification_value = float('inf')
+                internal_constraint = float('inf')
                 weight = [] # empty for now
                 delta_estimate = float('inf')
 
@@ -1971,7 +1971,7 @@ class UwbOnlineInitialisation:
                 anchor_measurement_dictionary["residuals"].append(residuals)
                 anchor_measurement_dictionary["condition_number"].append(condition_number)
                 anchor_measurement_dictionary["covariances"].append(covariances)
-                anchor_measurement_dictionary["verification_vector"].append(verification_value)
+                anchor_measurement_dictionary["internal_constraint"].append(internal_constraint)
 
                 anchor_measurement_dictionary["linear_ls_weights"].append(weight)
                 anchor_measurement_dictionary["residual_vector"].append(weight)

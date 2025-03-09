@@ -9,18 +9,14 @@ class AnchorStatus(Enum):
     """Enumeration of possible anchor initialization states."""
     UNSEEN = auto()           # Anchor has not been detected yet
     SEEN = auto()             # Anchor has been detected but not enough measurements
-    OPTIMISED_TRAJECTORY = auto()  # Optimal trajectory being executed for this anchor
     STOPPING_CRITERION_TRIGGERED = auto()  # Stopping criterion met, ready for optimization
+    OPTIMISED_TRAJECTORY = auto()  # Optimal trajectory being executed for this anchor
     INITIALISED = auto()      # Anchor fully initialized
 
 
 @dataclass
 class AnchorData:
     """Structured representation of anchor data during the initialization process.
-    
-    This dataclass replaces the dictionary structure previously used to store 
-    anchor measurements and estimation results, providing type safety and better
-    code organization.
     """
     # Identity and status
     anchor_id: str
@@ -44,17 +40,17 @@ class AnchorData:
     estimator_rough_non_linear: np.ndarray = field(default_factory=lambda: np.array([0.0, 0.0, 0.0, 0.0, 0.0]))
     covariance_matrix_rough_non_linear: np.ndarray = field(default_factory=lambda: np.array([]))
     
-    # Final estimator (continuously updated)
+    # Final estimator (continuously updated to contain the best estimate)
     estimator: np.ndarray = field(default_factory=lambda: np.array([0.0, 0.0, 0.0, 0.0, 0.0]))
     covariance_matrix: np.ndarray = field(default_factory=lambda: np.array([]))
     
-    # Quality metrics for stopping criteria
+    # Quality metrics for stopping criteria and logging
     FIM: List[np.ndarray] = field(default_factory=list)
     GDOP: List[float] = field(default_factory=list)
     residuals: List[float] = field(default_factory=list)
     condition_number: List[float] = field(default_factory=list)
     covariances: List[np.ndarray] = field(default_factory=list)
-    verification_vector: List[float] = field(default_factory=list)
+    internal_constraint: List[float] = field(default_factory=list)
     residual_vector: List[np.ndarray] = field(default_factory=list)
     consecutive_distances_vector: List[float] = field(default_factory=list)
     
@@ -64,7 +60,7 @@ class AnchorData:
     residuals_convergence_counter: int = 0
     condition_number_convergence_counter: int = 0
     covariances_convergence_counter: int = 0
-    verification_vector_convergence_counter: int = 0
+    internal_constraint_convergence_counter: int = 0
     consecutive_distances_vector_convergence_counter: int = 0
     
     # Gaussian Mixture Model results
@@ -128,7 +124,7 @@ class AnchorData:
         self.positions_post_rough_estimate.append(position)
     
     def append_quality_metrics(self, fim: np.ndarray, gdop: float, residual: float, 
-                              cond_num: float, covar: np.ndarray, verification: float,
+                              cond_num: float, covar: np.ndarray, internal_constraint: float,
                               residuals: np.ndarray, distance_delta: float) -> None:
         """Append quality metrics used for stopping criteria."""
         self.FIM.append(fim)
@@ -136,7 +132,7 @@ class AnchorData:
         self.residuals.append(residual)
         self.condition_number.append(cond_num)
         self.covariances.append(covar)
-        self.verification_vector.append(verification)
+        self.internal_constraint.append(internal_constraint)
         self.residual_vector.append(residuals)
         self.consecutive_distances_vector.append(distance_delta)
     
@@ -147,7 +143,7 @@ class AnchorData:
         self.residuals.append(float('inf'))
         self.condition_number.append(float('inf'))
         self.covariances.append(np.array([float('inf')] * 3))
-        self.verification_vector.append(float('inf'))
+        self.internal_constraint.append(float('inf'))
         self.residual_vector.append(np.array([]))
         self.consecutive_distances_vector.append(float('inf'))
         self.linear_ls_weights.append([])
@@ -170,7 +166,7 @@ class AnchorData:
         self.positions_post_rough_estimate = []
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert the anchor data to a dictionary format compatible with the original code."""
+        """Convert the anchor data to a dictionary format"""
         return {
             "status": self.status.name.lower(),
             "distances_pre_rough_estimate": self.distances_pre_rough_estimate,
@@ -190,7 +186,7 @@ class AnchorData:
             "residuals": self.residuals,
             "condition_number": self.condition_number,
             "covariances": self.covariances,
-            "verification_vector": self.verification_vector,
+            "internal_constraint": self.internal_constraint,
             "residual_vector": self.residual_vector,
             "consecutive_distances_vector": self.consecutive_distances_vector,
             "FIM_convergence_counter": self.FIM_convergence_counter,
@@ -198,7 +194,7 @@ class AnchorData:
             "residuals_convergence_counter": self.residuals_convergence_counter,
             "condition_number_convergence_counter": self.condition_number_convergence_counter,
             "covariances_convergence_counter": self.covariances_convergence_counter,
-            "verification_vector_convergence_counter": self.verification_vector_convergence_counter,
+            "internal_constraint_convergence_counter": self.internal_constraint_convergence_counter,
             "consecutive_distances_vector_convergence_counter": self.consecutive_distances_vector_convergence_counter,
             "GMM": self.GMM,
             "optimal_waypoints": self.optimal_waypoints
@@ -206,7 +202,7 @@ class AnchorData:
     
     @classmethod
     def from_dict(cls, anchor_id: str, data_dict: Dict[str, Any]) -> 'AnchorData':
-        """Create an AnchorData instance from a dictionary, for compatibility with the original code."""
+        """Create an AnchorData instance from a dictionary"""
         status_str = data_dict.get("status", "unseen")
         try:
             status = AnchorStatus[status_str.upper()]
@@ -233,7 +229,7 @@ class AnchorData:
         anchor_data.residuals = data_dict.get("residuals", [])
         anchor_data.condition_number = data_dict.get("condition_number", [])
         anchor_data.covariances = data_dict.get("covariances", [])
-        anchor_data.verification_vector = data_dict.get("verification_vector", [])
+        anchor_data.internal_constraint = data_dict.get("internal_constraint", [])
         anchor_data.residual_vector = data_dict.get("residual_vector", [])
         anchor_data.consecutive_distances_vector = data_dict.get("consecutive_distances_vector", [])
         anchor_data.FIM_convergence_counter = data_dict.get("FIM_convergence_counter", 0)
@@ -241,7 +237,7 @@ class AnchorData:
         anchor_data.residuals_convergence_counter = data_dict.get("residuals_convergence_counter", 0)
         anchor_data.condition_number_convergence_counter = data_dict.get("condition_number_convergence_counter", 0)
         anchor_data.covariances_convergence_counter = data_dict.get("covariances_convergence_counter", 0)
-        anchor_data.verification_vector_convergence_counter = data_dict.get("verification_vector_convergence_counter", 0)
+        anchor_data.internal_constraint_convergence_counter = data_dict.get("internal_constraint_convergence_counter", 0)
         anchor_data.consecutive_distances_vector_convergence_counter = data_dict.get("consecutive_distances_vector_convergence_counter", 0)
         anchor_data.GMM = data_dict.get("GMM", [])
         anchor_data.optimal_waypoints = data_dict.get("optimal_waypoints", [])

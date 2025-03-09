@@ -1,0 +1,79 @@
+# UWB Initialization Configuration
+# Place this file in your package's config directory (e.g., your_package/config/uwb_config.yaml)
+
+# Measurement gathering parameters
+measurement:
+  # Tangent ratio between consecutive measurements (smaller value means more measurements)
+  distance_to_anchor_ratio_threshold: 0.03
+  # Number of redundant measurements at the same position
+  number_of_redundant_measurements: 1
+  # Maximum distance to the anchor for a valid measurement (meters)
+  distance_rejection_threshold: 20.0
+
+# Least squares estimation parameters
+least_squares:
+  # Bias modeling
+  use_linear_bias: false
+  use_constant_bias: true
+  normalised: false
+  # Regularization to keep biases small
+  regularise: true
+  
+  # Estimation methods
+  rough_estimate_method: "LINEAR_REWEIGHTED"  # Options: SIMPLE_LINEAR, LINEAR_REWEIGHTED, EM_ALGORITHM
+  outlier_removing: "NONE"  # Options: NONE, COUNTER, IMMEDIATE
+  reweighting_iterations: 5
+  use_trimmed_reweighted: true
+  
+  # Weighting function parameters
+  weighting_function: "mad"  # Options: huber, tukey, geman_mcclure, welsch, mad
+  huber_delta: 0.01
+  tukey_c: 4.685
+  welsch_c: 2.0
+  
+  # Non-linear optimization
+  non_linear_optimisation_type: "EM"  # Options: IRLS, LM, EM, MM
+
+# Stopping criteria parameters
+stopping_criteria:
+  # List of criteria to use (can include multiple)
+  stopping_criteria: 
+    - "nb_measurements"
+    - "GDOP"
+    # - "FIM"
+    # - "residuals"
+    # - "condition_number"
+    # - "covariances"
+    # - "internal_constraint"
+    # - "consecutive_distances_vector"
+  
+  # Absolute thresholds
+  FIM_thresh: 1.0e5
+  GDOP_thresh: 3.0
+  residuals_thresh: 100.0
+  condition_number_thresh: 5.0e5
+  covariance_thresh: 10.0
+  internal_constraint_thresh: 10.0
+  number_of_measurements_thresh: 30
+  
+  # Relative thresholds (for convergence checking)
+  FIM_ratio_thresh: 1.0
+  GDOP_ratio_thresh: 0.2
+  residuals_ratio_thresh: 1.0
+  condition_number_ratio_thresh: 0.1
+  covariance_ratio_thresh: 1.0
+  convergence_postion_thresh: 1.0
+  internal_constraint_ratio_thresh: 0.1
+  
+  # Convergence counter threshold
+  convergence_counter_threshold: 3
+
+# Outlier rejection parameters
+outlier:
+  z_score_threshold: 2.0
+  outlier_count_threshold: 3
+
+# Trajectory optimization parameters
+trajectory:
+  trajectory_optimisation_method: "GDOP"  # Options: GDOP, FIM
+  link_method: "STRICT_RETURN"  # Options: STRICT_RETURN, RETURN_TO_INITIAL, STRAIGHT_TO_WAYPOINT, RETURN_TO_CLOSEST, HYBRID_RETURN, OPTIMAL

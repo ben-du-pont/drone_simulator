@@ -208,12 +208,12 @@ class MeasurementProcessor:
             True if outliers were found and removed, False otherwise
         """
         # If no outlier removal is configured, return False
-        if self.config.outlier_removal_method == "None":
+        if self.config.outlier_removal_method == "NONE":
             return False
             
         outliers = self.identify_outliers(residuals)
         
-        if self.config.outlier_removal_method == "immediate":
+        if self.config.outlier_removal_method == "IMMEDIATE":
             # Immediately remove outliers from the measurements
             if len(outliers) > 0:
                 # Convert lists to numpy arrays for easier removal
@@ -239,7 +239,7 @@ class MeasurementProcessor:
             
             return False
             
-        elif self.config.outlier_removal_method == "counter":
+        elif self.config.outlier_removal_method == "COUNTER":
             # Track outliers and remove after consecutive detections
             number_of_measurements = anchor_data.num_measurements_pre_estimation
             outlier_counter_length = len(anchor_data.linear_ls_outlier_counter)

@@ -29,8 +29,8 @@ class MetricsResult:
     median_residual: float = float('inf')
     """Median of the absolute residuals."""
     
-    verification_value: float = float('inf')
-    """Verification value for internal consistency check."""
+    internal_constraint: float = float('inf')
+    """Internal constraint for consistency."""
     
     covariances: Optional[np.ndarray] = None
     """Covariance values for the position parameters."""
@@ -119,7 +119,7 @@ class MetricsCalculator:
             condition_number=condition_number,
             mean_residual=mean_residual,
             median_residual=median_residual,
-            verification_value=float('inf'),  # Not computed here
+            internal_constraint=float('inf'),  # Not computed here
             covariances=covariances,
             outliers=outliers
         )
@@ -325,49 +325,6 @@ class MetricsCalculator:
         z_scores = self.compute_z_score(residuals)
         outliers = np.where(np.abs(z_scores) > z_score_threshold)[0]
         return outliers.tolist()
-    
-    def identify_outliers_gmm(self, residuals: np.ndarray, threshold_prob: float = 0.05) -> List[int]:
-        """Identify outliers using a Gaussian Mixture Model (GMM).
-        
-        This method uses a two-component GMM to model the residuals as a mixture
-        of "inliers" and "outliers", identifying measurements that are more likely
-        to belong to the outlier component.
-        
-        Args:
-            residuals: Residual values from the estimation
-            threshold_prob: Probability threshold for classifying outliers
-            
-        Returns:
-            List of indices of outliers
-        """
-        if len(residuals) < 5:  # Need enough data for GMM to be meaningful
-            return []
-            
-        try:
-            # Reshape for GMM
-            X = residuals.reshape(-1, 1)
-            
-            # Fit GMM with 2 components (inliers and outliers)
-            gmm = GaussianMixture(n_components=2, random_state=0)
-            gmm.fit(X)
-            
-            # Get component probabilities
-            probabilities = gmm.predict_proba(X)
-            
-            # Determine which component corresponds to outliers (larger variance)
-            variances = gmm.covariances_.flatten()
-            outlier_idx = np.argmax(variances)
-            
-            # Identify outliers as points more likely to belong to the outlier component
-            outlier_prob = probabilities[:, outlier_idx]
-            outliers = np.where(outlier_prob > (1 - threshold_prob))[0]
-            
-            return outliers.tolist()
-            
-        except Exception as e:
-            logger.warning(f"Error in GMM outlier detection: {e}")
-            # Fallback to z-score method
-            return self.identify_outliers(residuals)
     
     def check_convergence(self, current_value: float, previous_value: float, 
                          ratio_threshold: float) -> bool:

@@ -625,28 +625,28 @@ class TrajectoryOptimizer:
                                     anchor_estimate: np.ndarray,
                                     previous_measurements: np.ndarray) -> Dict[str, Any]:
         """Optimize the forward trajectory for measurements."""
-        logger.debug("\n=== Starting New Optimization ===")
-        logger.debug(f"Initial position: {initial_position}")
-        logger.debug(f"Anchor estimate: {anchor_estimate}")
-        logger.debug(f"Previous measurements:")
+        # logger.debug("\n=== Starting New Optimization ===")
+        # logger.debug(f"Initial position: {initial_position}")
+        # logger.debug(f"Anchor estimate: {anchor_estimate}")
+        # logger.debug(f"Previous measurements:")
         for i, meas in enumerate(previous_measurements):
             logger.debug(f"  Measurement {i}: {meas}")
         
         # Get baseline metric value
         current_metrics = self.metric.compute(anchor_estimate, previous_measurements)
-        logger.debug(f"Initial metric value: {current_metrics}")
+        # logger.debug(f"Initial metric value: {current_metrics}")
         
         max_waypoints = self.params.max_waypoints
         marginal_gain_threshold = self.params.marginal_gain_threshold
         radius_of_search = self.params.radius_of_search
 
-        logger.debug(f"Starting forward trajectory optimization with parameters:")
-        logger.debug(f"  max_waypoints: {max_waypoints}")
-        logger.debug(f"  marginal_gain_threshold: {marginal_gain_threshold}")
-        logger.debug(f"  radius_of_search: {radius_of_search}")
-        logger.debug(f"  initial_position: {initial_position}")
-        logger.debug(f"  anchor_estimate: {anchor_estimate}")
-        logger.debug(f"  number of previous measurements: {len(previous_measurements)}")
+        # logger.debug(f"Starting forward trajectory optimization with parameters:")
+        # logger.debug(f"  max_waypoints: {max_waypoints}")
+        # logger.debug(f"  marginal_gain_threshold: {marginal_gain_threshold}")
+        # logger.debug(f"  radius_of_search: {radius_of_search}")
+        # logger.debug(f"  initial_position: {initial_position}")
+        # logger.debug(f"  anchor_estimate: {anchor_estimate}")
+        # logger.debug(f"  number of previous measurements: {len(previous_measurements)}")
 
         best_waypoints = []
         metrics = {}
@@ -655,26 +655,26 @@ class TrajectoryOptimizer:
         
         # Create initial direction vector toward anchor
         vector = anchor_estimate - initial_position
-        logger.debug(f"Direction vector to anchor: {vector}")
+        # logger.debug(f"Direction vector to anchor: {vector}")
         
         # Compute spherical coordinates of the direction vector
         r, theta, phi = self.transformer.cartesian_to_spherical(vector, np.zeros(3))
         initial_guess = np.array([theta, phi])
-        logger.debug(f"Initial spherical coordinates - r: {r}, theta: {theta}, phi: {phi}")
-        logger.debug(f"Initial guess for optimization: {initial_guess}")
+        # logger.debug(f"Initial spherical coordinates - r: {r}, theta: {theta}, phi: {phi}")
+        # logger.debug(f"Initial guess for optimization: {initial_guess}")
         
         for i in range(max_waypoints):
-            logger.debug(f"\nStarting iteration {i+1}/{max_waypoints}")
+            # logger.debug(f"\nStarting iteration {i+1}/{max_waypoints}")
             
             # Use larger radius for first step
             current_radius = 2 * radius_of_search if i == 0 else radius_of_search
-            logger.debug(f"Current search radius: {current_radius}")
+            # logger.debug(f"Current search radius: {current_radius}")
             
             # Define the objective function for optimization
             def objective(spherical_coords: np.ndarray) -> float:
                 """Objective function to minimize."""
                 theta, phi = spherical_coords
-                logger.debug(f"Evaluating objective at theta: {theta}, phi: {phi}")
+                # logger.debug(f"Evaluating objective at theta: {theta}, phi: {phi}")
                 
                 # Convert spherical coordinates to Cartesian
                 new_point = self.transformer.spherical_to_cartesian(
@@ -693,13 +693,13 @@ class TrajectoryOptimizer:
             # Get bounds for spherical coordinates based on Cartesian constraints
             theta_bounds, phi_bounds = self.transformer.get_spherical_bounds(
                 last_measurement, current_radius, self.bounds)
-            logger.debug(f"Optimization bounds:")
-            logger.debug(f"  theta_bounds: {theta_bounds}")
-            logger.debug(f"  phi_bounds: {phi_bounds}")
+            # logger.debug(f"Optimization bounds:")
+            # logger.debug(f"  theta_bounds: {theta_bounds}")
+            # logger.debug(f"  phi_bounds: {phi_bounds}")
                 
             # Check if optimization is possible within bounds
             if None in theta_bounds or None in phi_bounds:
-                logger.warning("Invalid bounds detected, optimization not possible")
+                # logger.warning("Invalid bounds detected, optimization not possible")
                 return {
                     "waypoints": best_waypoints,
                     "metrics": metrics,
@@ -709,7 +709,7 @@ class TrajectoryOptimizer:
                 
             # Perform bounded optimization
             bounds = [theta_bounds, phi_bounds]
-            logger.debug(f"Starting optimization with bounds: {bounds}")
+            # logger.debug(f"Starting optimization with bounds: {bounds}")
             optimization_result = minimize(
                 objective, 
                 initial_guess, 
@@ -717,22 +717,22 @@ class TrajectoryOptimizer:
                 bounds=bounds
             )
             
-            logger.debug(f"Optimization result:")
-            logger.debug(f"  success: {optimization_result.success}")
-            logger.debug(f"  message: {optimization_result.message}")
-            logger.debug(f"  final x: {optimization_result.x}")
-            logger.debug(f"  final fun: {optimization_result.fun}")
-            logger.debug(f"  nfev: {optimization_result.nfev}")
+            # logger.debug(f"Optimization result:")
+            # logger.debug(f"  success: {optimization_result.success}")
+            # logger.debug(f"  message: {optimization_result.message}")
+            # logger.debug(f"  final x: {optimization_result.x}")
+            # logger.debug(f"  final fun: {optimization_result.fun}")
+            # logger.debug(f"  nfev: {optimization_result.nfev}")
             
             if optimization_result.success:
                 # Extract the optimal spherical coordinates
                 optimal_spherical = optimization_result.x
-                logger.debug(f"Optimal spherical coordinates: {optimal_spherical}")
+                # logger.debug(f"Optimal spherical coordinates: {optimal_spherical}")
                 
                 # Convert to Cartesian
                 new_waypoint = self.transformer.spherical_to_cartesian(
                     current_radius, optimal_spherical[0], optimal_spherical[1], last_measurement)
-                logger.debug(f"New waypoint in Cartesian coordinates: {new_waypoint}")
+                # logger.debug(f"New waypoint in Cartesian coordinates: {new_waypoint}")
                 
                 # Compute new metric value
                 all_measurements = np.vstack([previous_measurements, new_waypoint.reshape(1, 3)])

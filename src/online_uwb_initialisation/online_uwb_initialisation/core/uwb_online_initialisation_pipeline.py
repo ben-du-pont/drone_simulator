@@ -355,7 +355,7 @@ class UwbInitializationPipeline:
         anchor_data.residuals.append(np.mean(np.abs(result.residuals)))
         anchor_data.condition_number.append(result.condition_number)
         anchor_data.covariances.append(result.position_uncertainty if hasattr(result, 'position_uncertainty') else np.ones(3) * float('inf'))
-        anchor_data.verification_vector.append(result.verification_value)
+        anchor_data.internal_constraint.append(result.internal_constraint)
         anchor_data.residual_vector.append(result.residuals)
     
     def check_stopping_criteria(self, anchor_data: AnchorData) -> bool:
@@ -522,23 +522,23 @@ class UwbInitializationPipeline:
                 logger.info(f"Stopping criterion 'condition_number' met for anchor {anchor_data.anchor_id}")
                 return True
                 
-            elif criterion == "verification_vector":
-                if not check_criterion_convergence(anchor_data.verification_vector, 
-                                                self.config.stopping_criteria.verification_vector_ratio_thresh):
-                    anchor_data.verification_vector_convergence_counter = 0
+            elif criterion == "internal_constraint":
+                if not check_criterion_convergence(anchor_data.internal_constraint, 
+                                                self.config.stopping_criteria.internal_constraint_ratio_thresh):
+                    anchor_data.internal_constraint_convergence_counter = 0
                     continue
                     
-                anchor_data.verification_vector_convergence_counter += 1
+                anchor_data.internal_constraint_convergence_counter += 1
                 
-                if (anchor_data.verification_vector_convergence_counter <= 
+                if (anchor_data.internal_constraint_convergence_counter <= 
                     self.config.stopping_criteria.convergence_counter_threshold):
                     continue
                     
-                if not check_criterion_threshold(anchor_data.verification_vector, 
-                                               self.config.stopping_criteria.verification_vector_thresh):
+                if not check_criterion_threshold(anchor_data.internal_constraint, 
+                                               self.config.stopping_criteria.internal_constraint_thresh):
                     continue
                     
-                logger.info(f"Stopping criterion 'verification_vector' met for anchor {anchor_data.anchor_id}")
+                logger.info(f"Stopping criterion 'internal_constraint' met for anchor {anchor_data.anchor_id}")
                 return True
                 
             elif criterion == "consecutive_distances_vector":
@@ -594,7 +594,7 @@ class UwbInitializationPipeline:
         # Generate optimal trajectory for this anchor
         return self.optimize_trajectory_for_anchor(anchor_data)
     
-    def refine_estimate_nonlinear(self, anchor_data: AnchorData) -> None:
+    def refine_estimate_nonlinear(self, anchor_data: AnchorData, estimation_type: str = 'non_linear') -> None:
         """Refine the anchor position estimate using nonlinear optimization.
         
         Args:
@@ -621,10 +621,10 @@ class UwbInitializationPipeline:
             "irls": "nonlinear_irls",
             "lm": "nonlinear_lm",
             "em": "nonlinear_em",
-            "mm": "nonlinear_mm" 
+            "gmm": "nonlinear_gmm" 
         }
         
-        estimator_method = method_mapping.get(nl_method_str, "nonlinear_mm")
+        estimator_method = method_mapping.get(nl_method_str, "nonlinear_gmm")
         estimator = EstimationFactory.create_estimator(estimator_method, estimation_config)
         
         try:
@@ -632,7 +632,7 @@ class UwbInitializationPipeline:
             result = estimator.estimate(measurements, initial_guess=anchor_data.estimator)
             
             # Update anchor data with refined estimate
-            anchor_data.update_estimator(result.estimator, result.covariance_matrix, is_non_linear=True)
+            anchor_data.update_estimator(result.estimator, result.covariance_matrix, estimation_type=estimation_type)
             
             logger.info(f"Refined estimate for anchor {anchor_data.anchor_id} using {nl_method_str}")
             
@@ -681,7 +681,7 @@ class UwbInitializationPipeline:
         measurements = anchor_data.get_all_measurements()
         
         # Perform final nonlinear estimation
-        self.refine_estimate_nonlinear(anchor_data)
+        self.refine_estimate_nonlinear(anchor_data, estimation_type='final')
         
         # Set the anchor status to initialized
         anchor_data.status = AnchorStatus.INITIALISED

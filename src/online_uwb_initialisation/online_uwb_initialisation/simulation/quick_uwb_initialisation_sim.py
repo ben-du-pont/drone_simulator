@@ -426,7 +426,7 @@ class CalculateOnlineInitialisation:
             condition_number = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["condition_number"]
             covariances = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["covariances"]
             weights = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["linear_ls_weights"]
-            verification_value = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["verification_vector"]
+            internal_constraint = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["internal_constraint"]
             position_delta = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["consecutive_distances_vector"]
 
 
@@ -444,7 +444,7 @@ class CalculateOnlineInitialisation:
             self.covariances_vector[anchor_id] = covariances
             self.residuals_vector[anchor_id] = mean_residuals
             self.weight_vector[anchor_id] = weights
-            self.verifications_vector[anchor_id] = verification_value
+            self.internal_constraint_vector[anchor_id] = internal_constraint
             self.pos_delta_vector[anchor_id] = position_delta
 
             # To stay consistent in the length of the vectors, append a default value
@@ -510,7 +510,7 @@ class CalculateOnlineInitialisation:
             condition_number = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["condition_number"]
             covariances = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["covariances"]
             weights = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["linear_ls_weights"]
-            verification_value = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["verification_vector"]
+            internal_constraint = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["internal_constraint"]
             position_delta = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["consecutive_distances_vector"]
 
 
@@ -528,7 +528,7 @@ class CalculateOnlineInitialisation:
             self.covariances_vector[anchor_id] = covariances
             self.residuals_vector[anchor_id] = mean_residuals
             self.weight_vector[anchor_id] = weights
-            self.verifications_vector[anchor_id] = verification_value
+            self.internal_constraint_vector[anchor_id] = internal_constraint
             self.pos_delta_vector[anchor_id] = position_delta
 
             # To stay consistent in the length of the vectors, append a default value
@@ -648,7 +648,7 @@ class CalculateOnlineInitialisation:
             condition_number = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["condition_number"]
             covariances = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["covariances"]
             weights = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["linear_ls_weights"]
-            verification_value = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["verification_vector"]
+            internal_contraint = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["internal_constraint"]
             position_delta = self.uwb_online_initialisation.anchor_measurements_dictionary[anchor_id]["consecutive_distances_vector"]
 
 
@@ -666,7 +666,7 @@ class CalculateOnlineInitialisation:
             self.covariances_vector[anchor_id] = covariances
             self.residuals_vector[anchor_id] = mean_residuals
             self.weight_vector[anchor_id] = weights
-            self.verifications_vector[anchor_id] = verification_value
+            self.verifications_vector[anchor_id] = internal_contraint
             self.pos_delta_vector[anchor_id] = position_delta
 
             # To stay consistent in the length of the vectors, append a default value
