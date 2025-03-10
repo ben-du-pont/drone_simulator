@@ -209,7 +209,10 @@ class NoiseModel:
             raise ValueError("Outlier range minimum must be less than maximum")
         
         # Initialize random number generator with optional seed
-        self._rng = np.random.default_rng(self.random_seed)
+        if self.random_seed is not None or self.random_seed != 0:
+            self._rng = np.random.default_rng(self.random_seed)
+        else:
+            self._rng = np.random.default_rng()
 
     def apply(self, distance: float) -> Tuple[float, float, bool]:
         """

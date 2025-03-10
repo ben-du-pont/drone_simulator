@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional, Union, Any, Set
 import logging
 from enum import Enum, auto
+import numpy as np
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -291,6 +292,63 @@ class TrajectoryConfig:
     link_method: LinkMethod = field(default_factory=lambda: LinkMethod.STRICT_RETURN)
     """Method to use for linking trajectory segments."""
 
+    bounds: np.ndarray = field(default_factory=lambda: np.array([
+        [-float('inf'), float('inf')],  # x bounds
+        [-float('inf'), float('inf')],  # y bounds
+        [-float('inf'), float('inf')]   # z bounds
+    ]))
+    """3x2 matrix of bounds for [x,y,z] coordinates, where each row is [min, max]"""
+
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any]) -> 'TrajectoryConfig':
+        """Create a TrajectoryConfig from a dictionary."""
+        # Handle trajectory optimization method
+        method_str = config_dict.get('trajectory_optimisation_method', 'GDOP').upper()
+        try:
+            method = TrajectoryOptimizationMethod[method_str]
+        except KeyError:
+            logger.warning(f"Invalid trajectory optimization method: {method_str}. Using GDOP.")
+            method = TrajectoryOptimizationMethod.GDOP
+
+        # Handle link method
+        link_str = config_dict.get('link_method', 'STRAIGHT').upper()
+        try:
+            link = LinkMethod[link_str]
+        except KeyError:
+            logger.warning(f"Invalid link method: {link_str}. Using STRAIGHT.")
+            link = LinkMethod.STRAIGHT
+
+        # Handle bounds
+        default_bounds = np.array([
+            [-5.0, 5.0],  # x bounds
+            [-5.0, 5.0],  # y bounds
+            [0.0, 2.0]    # z bounds
+        ])
+
+        bounds = config_dict.get('bounds', default_bounds)
+        try:
+            bounds = np.array(bounds, dtype=float)
+            if bounds.shape != (3, 2):
+                logger.warning(f"Invalid bounds shape {bounds.shape}. Expected (3, 2). Using default bounds.")
+                bounds = default_bounds
+        except (ValueError, TypeError):
+            logger.warning("Invalid bounds format. Using default bounds.")
+            bounds = default_bounds
+
+        return cls(
+            trajectory_optimisation_method=method,
+            link_method=link,
+            bounds=bounds
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the config to a dictionary."""
+        return {
+            'trajectory_optimisation_method': self.trajectory_optimisation_method.name,
+            'link_method': self.link_method.name,
+            'bounds': self.bounds.tolist()  # Convert numpy array to nested list for JSON serialization
+        }
+
 
 @dataclass
 class UwbInitializationConfig:
@@ -327,94 +385,98 @@ class UwbInitializationConfig:
         config = cls()
         
         # Measurement gathering parameters
-        if 'distance_to_anchor_ratio_threshold' in config_dict:
-            config.measurement.distance_to_anchor_ratio_threshold = config_dict['distance_to_anchor_ratio_threshold']
-        if 'number_of_redundant_measurements' in config_dict:
-            config.measurement.number_of_redundant_measurements = config_dict['number_of_redundant_measurements']
-        if 'distance_rejection_threshold' in config_dict:
-            config.measurement.distance_rejection_threshold = config_dict['distance_rejection_threshold']
+        if 'measurement.distance_to_anchor_ratio_threshold' in config_dict:
+            config.measurement.distance_to_anchor_ratio_threshold = config_dict['measurement.distance_to_anchor_ratio_threshold']
+        if 'measurement.number_of_redundant_measurements' in config_dict:
+            config.measurement.number_of_redundant_measurements = config_dict['measurement.number_of_redundant_measurements']
+        if 'measurement.distance_rejection_threshold' in config_dict:
+            config.measurement.distance_rejection_threshold = config_dict['measurement.distance_rejection_threshold']
         
         # Least squares parameters
-        if 'use_linear_bias' in config_dict:
-            config.least_squares.use_linear_bias = config_dict['use_linear_bias']
-        if 'use_constant_bias' in config_dict:
-            config.least_squares.use_constant_bias = config_dict['use_constant_bias']
-        if 'normalised' in config_dict:
-            config.least_squares.normalised = config_dict['normalised']
-        if 'regularise' in config_dict:
-            config.least_squares.regularise = config_dict['regularise']
-        if 'rough_estimate_method' in config_dict:
+        if 'least_squares.use_linear_bias' in config_dict:
+            config.least_squares.use_linear_bias = config_dict['least_squares.use_linear_bias']
+        if 'least_squares.use_constant_bias' in config_dict:
+            config.least_squares.use_constant_bias = config_dict['least_squares.use_constant_bias']
+        if 'least_squares.normalised' in config_dict:
+            config.least_squares.normalised = config_dict['least_squares.normalised']
+        if 'least_squares.regularise' in config_dict:
+            config.least_squares.regularise = config_dict['least_squares.regularise']
+        if 'least_squares.rough_estimate_method' in config_dict:
             config.least_squares.rough_estimate_method = RoughEstimateMethod.from_string(
-                config_dict['rough_estimate_method']
+                config_dict['least_squares.rough_estimate_method']
             )
-        if 'outlier_removing' in config_dict:
+        if 'least_squares.outlier_removing' in config_dict:
             config.least_squares.outlier_removing = OutlierRemovalMethod.from_string(
-                config_dict['outlier_removing']
+                config_dict['least_squares.outlier_removing']
             )
-        if 'reweighting_iterations' in config_dict:
-            config.least_squares.reweighting_iterations = config_dict['reweighting_iterations']
-        if 'use_trimmed_reweighted' in config_dict:
-            config.least_squares.use_trimmed_reweighted = config_dict['use_trimmed_reweighted']
-        if 'weighting_function' in config_dict:
-            config.least_squares.weighting_function = config_dict['weighting_function']
-        if 'huber_delta' in config_dict:
-            config.least_squares.huber_delta = config_dict['huber_delta']
-        if 'tukey_c' in config_dict:
-            config.least_squares.tukey_c = config_dict['tukey_c']
-        if 'welsch_c' in config_dict:
-            config.least_squares.welsch_c = config_dict['welsch_c']
-        if 'non_linear_optimisation_type' in config_dict:
+        if 'least_squares.reweighting_iterations' in config_dict:
+            config.least_squares.reweighting_iterations = config_dict['least_squares.reweighting_iterations']
+        if 'least_squares.use_trimmed_reweighted' in config_dict:
+            config.least_squares.use_trimmed_reweighted = config_dict['least_squares.use_trimmed_reweighted']
+        if 'least_squares.weighting_function' in config_dict:
+            config.least_squares.weighting_function = config_dict['least_squares.weighting_function']
+        if 'least_squares.huber_delta' in config_dict:
+            config.least_squares.huber_delta = config_dict['least_squares.huber_delta']
+        if 'least_squares.tukey_c' in config_dict:
+            config.least_squares.tukey_c = config_dict['least_squares.tukey_c']
+        if 'least_squares.welsch_c' in config_dict:
+            config.least_squares.welsch_c = config_dict['least_squares.welsch_c']
+        if 'least_squares.non_linear_optimisation_type' in config_dict:
             config.least_squares.non_linear_optimisation_type = NonLinearOptimizationType.from_string(
-                config_dict['non_linear_optimisation_type']
+                config_dict['least_squares.non_linear_optimisation_type']
             )
         
         # Stopping criteria parameters
-        if 'stopping_criteria' in config_dict:
-            config.stopping_criteria.stopping_criteria = config_dict['stopping_criteria']
-        if 'FIM_thresh' in config_dict:
-            config.stopping_criteria.FIM_thresh = config_dict['FIM_thresh']
-        if 'GDOP_thresh' in config_dict:
-            config.stopping_criteria.GDOP_thresh = config_dict['GDOP_thresh']
-        if 'residuals_thresh' in config_dict:
-            config.stopping_criteria.residuals_thresh = config_dict['residuals_thresh']
-        if 'condition_number_thresh' in config_dict:
-            config.stopping_criteria.condition_number_thresh = config_dict['condition_number_thresh']
-        if 'covariance_thresh' in config_dict:
-            config.stopping_criteria.covariance_thresh = config_dict['covariance_thresh']
-        if 'internal_constraint_thresh' in config_dict:
-            config.stopping_criteria.internal_constraint_thresh = config_dict['internal_constraint_thresh']
-        if 'number_of_measurements_thresh' in config_dict:
-            config.stopping_criteria.number_of_measurements_thresh = config_dict['number_of_measurements_thresh']
-        if 'FIM_ratio_thresh' in config_dict:
-            config.stopping_criteria.FIM_ratio_thresh = config_dict['FIM_ratio_thresh']
-        if 'GDOP_ratio_thresh' in config_dict:
-            config.stopping_criteria.GDOP_ratio_thresh = config_dict['GDOP_ratio_thresh']
-        if 'residuals_ratio_thresh' in config_dict:
-            config.stopping_criteria.residuals_ratio_thresh = config_dict['residuals_ratio_thresh']
-        if 'condition_number_ratio_thresh' in config_dict:
-            config.stopping_criteria.condition_number_ratio_thresh = config_dict['condition_number_ratio_thresh']
-        if 'covariance_ratio_thresh' in config_dict:
-            config.stopping_criteria.covariance_ratio_thresh = config_dict['covariance_ratio_thresh']
-        if 'convergence_postion_thresh' in config_dict:
-            config.stopping_criteria.convergence_postion_thresh = config_dict['convergence_postion_thresh']
-        if 'internal_constraint_ratio_thresh' in config_dict:
-            config.stopping_criteria.internal_constraint_ratio_thresh = config_dict['internal_constraint_ratio_thresh']
-        if 'convergence_counter_threshold' in config_dict:
-            config.stopping_criteria.convergence_counter_threshold = config_dict['convergence_counter_threshold']
+        if 'stopping_criteria.stopping_criteria' in config_dict:
+            config.stopping_criteria.stopping_criteria = config_dict['stopping_criteria.stopping_criteria']
+        if 'stopping_criteria.FIM_thresh' in config_dict:
+            config.stopping_criteria.FIM_thresh = config_dict['stopping_criteria.FIM_thresh']
+        if 'stopping_criteria.GDOP_thresh' in config_dict:
+            config.stopping_criteria.GDOP_thresh = config_dict['stopping_criteria.GDOP_thresh']
+        if 'stopping_criteria.residuals_thresh' in config_dict:
+            config.stopping_criteria.residuals_thresh = config_dict['stopping_criteria.residuals_thresh']
+        if 'stopping_criteria.condition_number_thresh' in config_dict:
+            config.stopping_criteria.condition_number_thresh = config_dict['stopping_criteria.condition_number_thresh']
+        if 'stopping_criteria.covariance_thresh' in config_dict:
+            config.stopping_criteria.covariance_thresh = config_dict['stopping_criteria.covariance_thresh']
+        if 'stopping_criteria.internal_constraint_thresh' in config_dict:
+            config.stopping_criteria.internal_constraint_thresh = config_dict['stopping_criteria.internal_constraint_thresh']
+        if 'stopping_criteria.number_of_measurements_thresh' in config_dict:
+            config.stopping_criteria.number_of_measurements_thresh = config_dict['stopping_criteria.number_of_measurements_thresh']
+        if 'stopping_criteria.FIM_ratio_thresh' in config_dict:
+            config.stopping_criteria.FIM_ratio_thresh = config_dict['stopping_criteria.FIM_ratio_thresh']
+        if 'stopping_criteria.GDOP_ratio_thresh' in config_dict:
+            config.stopping_criteria.GDOP_ratio_thresh = config_dict['stopping_criteria.GDOP_ratio_thresh']
+        if 'stopping_criteria.residuals_ratio_thresh' in config_dict:
+            config.stopping_criteria.residuals_ratio_thresh = config_dict['stopping_criteria.residuals_ratio_thresh']
+        if 'stopping_criteria.condition_number_ratio_thresh' in config_dict:
+            config.stopping_criteria.condition_number_ratio_thresh = config_dict['stopping_criteria.condition_number_ratio_thresh']
+        if 'stopping_criteria.covariance_ratio_thresh' in config_dict:
+            config.stopping_criteria.covariance_ratio_thresh = config_dict['stopping_criteria.covariance_ratio_thresh']
+        if 'stopping_criteria.convergence_postion_thresh' in config_dict:
+            config.stopping_criteria.convergence_postion_thresh = config_dict['stopping_criteria.convergence_postion_thresh']
+        if 'stopping_criteria.internal_constraint_ratio_thresh' in config_dict:
+            config.stopping_criteria.internal_constraint_ratio_thresh = config_dict['stopping_criteria.internal_constraint_ratio_thresh']
+        if 'stopping_criteria.convergence_counter_threshold' in config_dict:
+            config.stopping_criteria.convergence_counter_threshold = config_dict['stopping_criteria.convergence_counter_threshold']
         
         # Outlier rejection parameters
-        if 'z_score_threshold' in config_dict:
-            config.outlier.z_score_threshold = config_dict['z_score_threshold']
-        if 'outlier_count_threshold' in config_dict:
-            config.outlier.outlier_count_threshold = config_dict['outlier_count_threshold']
+        if 'outlier.z_score_threshold' in config_dict:
+            config.outlier.z_score_threshold = config_dict['outlier.z_score_threshold']
+        if 'outlier.outlier_count_threshold' in config_dict:
+            config.outlier.outlier_count_threshold = config_dict['outlier.outlier_count_threshold']
         
         # Trajectory parameters
-        if 'trajectory_optimisation_method' in config_dict:
+        if 'trajectory.trajectory_optimisation_method' in config_dict:
             config.trajectory.trajectory_optimisation_method = TrajectoryOptimizationMethod.from_string(
-                config_dict['trajectory_optimisation_method']
+                config_dict['trajectory.trajectory_optimisation_method']
             )
-        if 'link_method' in config_dict:
-            config.trajectory.link_method = LinkMethod.from_string(config_dict['link_method'])
+        if 'trajectory.link_method' in config_dict:
+            config.trajectory.link_method = LinkMethod.from_string(
+                config_dict['trajectory.link_method']
+            )
+        if 'trajectory.bounds' in config_dict:
+            config.trajectory.bounds = np.array(config_dict['trajectory.bounds'])
         
         return config
     
@@ -422,52 +484,53 @@ class UwbInitializationConfig:
         """Convert the configuration to a flat dictionary.
         
         Returns:
-            Dictionary of configuration parameters in a flat structure
+            Dictionary of configuration parameters in a flat structure with namespaces
         """
         return {
             # Measurement gathering parameters
-            'distance_to_anchor_ratio_threshold': self.measurement.distance_to_anchor_ratio_threshold,
-            'number_of_redundant_measurements': self.measurement.number_of_redundant_measurements,
-            'distance_rejection_threshold': self.measurement.distance_rejection_threshold,
+            'measurement.distance_to_anchor_ratio_threshold': self.measurement.distance_to_anchor_ratio_threshold,
+            'measurement.number_of_redundant_measurements': self.measurement.number_of_redundant_measurements,
+            'measurement.distance_rejection_threshold': self.measurement.distance_rejection_threshold,
             
             # Least squares parameters
-            'use_linear_bias': self.least_squares.use_linear_bias,
-            'use_constant_bias': self.least_squares.use_constant_bias,
-            'normalised': self.least_squares.normalised,
-            'regularise': self.least_squares.regularise,
-            'rough_estimate_method': self.least_squares.rough_estimate_method.name.lower(),
-            'outlier_removing': self.least_squares.outlier_removing.name.lower(),
-            'reweighting_iterations': self.least_squares.reweighting_iterations,
-            'use_trimmed_reweighted': self.least_squares.use_trimmed_reweighted,
-            'weighting_function': self.least_squares.weighting_function,
-            'huber_delta': self.least_squares.huber_delta,
-            'tukey_c': self.least_squares.tukey_c,
-            'welsch_c': self.least_squares.welsch_c,
-            'non_linear_optimisation_type': self.least_squares.non_linear_optimisation_type.name,
+            'least_squares.use_linear_bias': self.least_squares.use_linear_bias,
+            'least_squares.use_constant_bias': self.least_squares.use_constant_bias,
+            'least_squares.normalised': self.least_squares.normalised,
+            'least_squares.regularise': self.least_squares.regularise,
+            'least_squares.rough_estimate_method': self.least_squares.rough_estimate_method.name.lower(),
+            'least_squares.outlier_removing': self.least_squares.outlier_removing.name.lower(),
+            'least_squares.reweighting_iterations': self.least_squares.reweighting_iterations,
+            'least_squares.use_trimmed_reweighted': self.least_squares.use_trimmed_reweighted,
+            'least_squares.weighting_function': self.least_squares.weighting_function,
+            'least_squares.huber_delta': self.least_squares.huber_delta,
+            'least_squares.tukey_c': self.least_squares.tukey_c,
+            'least_squares.welsch_c': self.least_squares.welsch_c,
+            'least_squares.non_linear_optimisation_type': self.least_squares.non_linear_optimisation_type.name,
             
             # Stopping criteria parameters
-            'stopping_criteria': self.stopping_criteria.stopping_criteria,
-            'FIM_thresh': self.stopping_criteria.FIM_thresh,
-            'GDOP_thresh': self.stopping_criteria.GDOP_thresh,
-            'residuals_thresh': self.stopping_criteria.residuals_thresh,
-            'condition_number_thresh': self.stopping_criteria.condition_number_thresh,
-            'covariance_thresh': self.stopping_criteria.covariance_thresh,
-            'internal_constraint_thresh': self.stopping_criteria.internal_constraint_thresh,
-            'number_of_measurements_thresh': self.stopping_criteria.number_of_measurements_thresh,
-            'FIM_ratio_thresh': self.stopping_criteria.FIM_ratio_thresh,
-            'GDOP_ratio_thresh': self.stopping_criteria.GDOP_ratio_thresh,
-            'residuals_ratio_thresh': self.stopping_criteria.residuals_ratio_thresh,
-            'condition_number_ratio_thresh': self.stopping_criteria.condition_number_ratio_thresh,
-            'covariance_ratio_thresh': self.stopping_criteria.covariance_ratio_thresh,
-            'convergence_postion_thresh': self.stopping_criteria.convergence_postion_thresh,
-            'internal_constraint_ratio_thresh': self.stopping_criteria.internal_constraint_ratio_thresh,
-            'convergence_counter_threshold': self.stopping_criteria.convergence_counter_threshold,
+            'stopping_criteria.stopping_criteria': self.stopping_criteria.stopping_criteria,
+            'stopping_criteria.FIM_thresh': self.stopping_criteria.FIM_thresh,
+            'stopping_criteria.GDOP_thresh': self.stopping_criteria.GDOP_thresh,
+            'stopping_criteria.residuals_thresh': self.stopping_criteria.residuals_thresh,
+            'stopping_criteria.condition_number_thresh': self.stopping_criteria.condition_number_thresh,
+            'stopping_criteria.covariance_thresh': self.stopping_criteria.covariance_thresh,
+            'stopping_criteria.internal_constraint_thresh': self.stopping_criteria.internal_constraint_thresh,
+            'stopping_criteria.number_of_measurements_thresh': self.stopping_criteria.number_of_measurements_thresh,
+            'stopping_criteria.FIM_ratio_thresh': self.stopping_criteria.FIM_ratio_thresh,
+            'stopping_criteria.GDOP_ratio_thresh': self.stopping_criteria.GDOP_ratio_thresh,
+            'stopping_criteria.residuals_ratio_thresh': self.stopping_criteria.residuals_ratio_thresh,
+            'stopping_criteria.condition_number_ratio_thresh': self.stopping_criteria.condition_number_ratio_thresh,
+            'stopping_criteria.covariance_ratio_thresh': self.stopping_criteria.covariance_ratio_thresh,
+            'stopping_criteria.convergence_postion_thresh': self.stopping_criteria.convergence_postion_thresh,
+            'stopping_criteria.internal_constraint_ratio_thresh': self.stopping_criteria.internal_constraint_ratio_thresh,
+            'stopping_criteria.convergence_counter_threshold': self.stopping_criteria.convergence_counter_threshold,
             
             # Outlier rejection parameters
-            'z_score_threshold': self.outlier.z_score_threshold,
-            'outlier_count_threshold': self.outlier.outlier_count_threshold,
+            'outlier.z_score_threshold': self.outlier.z_score_threshold,
+            'outlier.outlier_count_threshold': self.outlier.outlier_count_threshold,
             
             # Trajectory parameters
-            'trajectory_optimisation_method': self.trajectory.trajectory_optimisation_method.name,
-            'link_method': self.trajectory.link_method.name.lower(),
+            'trajectory.trajectory_optimisation_method': self.trajectory.trajectory_optimisation_method.name,
+            'trajectory.link_method': self.trajectory.link_method.name.lower(),
+            'trajectory.bounds': self.trajectory.bounds.tolist(),
         }

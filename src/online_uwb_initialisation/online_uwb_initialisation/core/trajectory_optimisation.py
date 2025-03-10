@@ -18,10 +18,10 @@ import logging
 from enum import Enum
 
 # Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# logging.basicConfig(
+#     level=logging.DEBUG,
+#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# )
 logger = logging.getLogger(__name__)
 
 # Add a stream handler for console output
@@ -274,7 +274,16 @@ class GDOPMetric(OptimizationMetric):
             
         try:
             A = self._build_geometry_matrix(target_coords, measurements)
-            
+
+            inv_at_a = np.linalg.inv(A.T @ A)
+            gdop = np.sqrt(np.trace(inv_at_a))
+            if gdop is not None:
+                return gdop
+            else:
+                return float('inf')
+        except np.linalg.LinAlgError:
+            return float('inf')
+        
             # Use SVD-based pseudo-inverse for numerical stability
             u, s, vh = np.linalg.svd(A, full_matrices=False)
             
@@ -552,6 +561,9 @@ class TrajectoryOptimizer:
             bounds: Optional Cartesian bounds for the optimization space
             params: Optional optimization parameters
         """
+        # Check if bounds is None instead of using it directly in boolean context
+        self.bounds = bounds if bounds is not None else [(-float('inf'), float('inf'))] * 3
+        
         # Convert string to enum if needed
         if isinstance(metric_type, str):
             try:
@@ -567,7 +579,7 @@ class TrajectoryOptimizer:
             self.metric = FIMMetric()
             
         # Set other parameters
-        self.bounds = bounds or [(-float('inf'), float('inf'))] * 3
+        self.bounds = bounds if bounds is not None else [(-float('inf'), float('inf'))] * 3
         self.params = params or OptimizationParams()
         self.transformer = CoordinateTransformer()
     

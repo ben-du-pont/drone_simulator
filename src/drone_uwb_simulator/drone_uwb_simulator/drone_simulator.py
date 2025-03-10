@@ -82,6 +82,8 @@ class SimulationConfig:
     dt: float = 0.05
     drone_speed: float = 1.0
     num_waypoints: int = 15
+    num_base_anchors: int = 3
+    num_unknown_anchors: int = 3
     bounds: Tuple[float, float, float] = (5.0, 5.0, 5.0)
     wait_time: float = 0.0
     min_height: float = 0.0
@@ -601,7 +603,7 @@ class DroneSimulation:
                 for anchor_id, position in self.DEFAULT_BASE_ANCHORS
             ]
         elif strategy == AnchorPlacementStrategy.RANDOM:
-            base_anchors = self._generate_random_anchors(4, "base", bias_model, noise_model)
+            base_anchors = self._generate_random_anchors(self.config.num_base_anchors, "base", bias_model, noise_model)
         elif strategy == AnchorPlacementStrategy.CORNERS:
             base_anchors = self._generate_corner_anchors(bias_model, noise_model)
         elif strategy == AnchorPlacementStrategy.OPTIMIZED:
@@ -610,15 +612,15 @@ class DroneSimulation:
             raise ValueError(f"Unsupported anchor placement strategy: {strategy}")
         
         # Generate unknown anchors with random placement
-        bounds_x, bounds_y, _ = self.config.bounds
-        unknown_position = np.random.uniform(
-            low=[-bounds_x, -bounds_y, 0],
-            high=[bounds_x, bounds_y, 0]
-        )
-        
-        unknown_anchors = [
-            Anchor("unknown_0", unknown_position, bias_model, noise_model),
-        ]
+        unknown_anchors = []
+        if self.config.num_unknown_anchors > 0:
+            for i in range(self.config.num_unknown_anchors):
+                bounds_x, bounds_y, _ = self.config.bounds
+                unknown_position = np.random.uniform(
+                    low=[-bounds_x, -bounds_y, 0],
+                    high=[bounds_x, bounds_y, 0]
+                )
+                unknown_anchors.append(Anchor(f"unknown_{i}", unknown_position, bias_model, noise_model))
         
         return base_anchors, unknown_anchors
     

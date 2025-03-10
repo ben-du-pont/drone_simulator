@@ -6,6 +6,10 @@
     namespace: "drone_sim"
     dt: 0.1
     drone_speed: 3.0
-    num_waypoints: 7
-    wait_time: 2.0
+    # random_seed: 1
+    num_waypoints: 4
+    num_base_anchors: 3
+    num_unknown_anchors: 3
+    wait_time: 0.0
     bounds: [10.0, 10.0, 10.0]
+

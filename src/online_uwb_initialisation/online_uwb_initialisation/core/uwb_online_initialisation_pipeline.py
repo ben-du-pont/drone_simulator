@@ -79,8 +79,12 @@ class UwbInitializationPipeline:
         
         # Create trajectory optimizer and manager
         self.trajectory_optimizer = TrajectoryOptimizer(
-            metric_type=self.config.trajectory.trajectory_optimisation_method.name
+            metric_type=self.config.trajectory.trajectory_optimisation_method.name,
+            bounds=self.config.trajectory.bounds
         )
+
+        # log the bounds
+        logger.info(f"Bounds: {self.config.trajectory.bounds}")
         
         self.trajectory_manager = TrajectoryManager(
             trajectory_optimizer=self.trajectory_optimizer,
@@ -632,7 +636,7 @@ class UwbInitializationPipeline:
             result = estimator.estimate(measurements, initial_guess=anchor_data.estimator)
             
             # Update anchor data with refined estimate
-            anchor_data.update_estimator(result.estimator, result.covariance_matrix, estimation_type=estimation_type)
+            anchor_data.update_estimator(result.estimator, result.covariance_matrix, estimator_type=estimation_type)
             
             logger.info(f"Refined estimate for anchor {anchor_data.anchor_id} using {nl_method_str}")
             
@@ -669,6 +673,9 @@ class UwbInitializationPipeline:
         self.trajectory_manager.state = TrajectoryState.ON_OPTIMAL_TRAJECTORY
         
         logger.info(f"Generated optimal trajectory for anchor {anchor_data.anchor_id} with {len(full_waypoints)} waypoints")
+
+        # log the full waypoints
+        logger.info(f"Full waypoints: {full_waypoints}")
         return full_waypoints
     
     def finalize_anchor_initialization(self, anchor_data: AnchorData) -> None:

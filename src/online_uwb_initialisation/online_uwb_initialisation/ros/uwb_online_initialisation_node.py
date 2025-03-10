@@ -36,6 +36,12 @@ class UwbOnlineInitialisationNode(Node):
         # Load configuration from YAML
         config = load_config_from_yaml(self)
         
+        # Log the configuration details
+        self.get_logger().info('Loaded configuration:')
+        self.get_logger().info(f'  Trajectory optimization method: {config.trajectory.trajectory_optimisation_method}')
+        self.get_logger().info(f'  Link method: {config.trajectory.link_method}')
+        self.get_logger().info(f'  Stopping criterion: {config.stopping_criteria.stopping_criteria}')
+        
         # Core components
         self.uwb_initializer = UwbInitializationPipeline(config)
         self.base_anchors = {}
@@ -274,7 +280,10 @@ class UwbOnlineInitialisationNode(Node):
                 
                 # Check if we have a new optimized trajectory and need to publish it
                 is_on_optimal_trajectory = self.uwb_initializer.trajectory_manager.state == TrajectoryState.ON_OPTIMAL_TRAJECTORY
+                # check if the anchor status in optimised trajectory
+                is_optimised_trajectory = anchor_data.status == AnchorStatus.OPTIMISED_TRAJECTORY
                 if (is_on_optimal_trajectory and 
+                    is_optimised_trajectory and
                     anchor_id not in self.published_optimized_trajectories and
                     len(self.uwb_initializer.trajectory_manager.current_optimal_waypoints) > 0):
                     self.get_logger().info(f"Publishing optimized trajectory for anchor {anchor_id}")

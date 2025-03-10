@@ -32,14 +32,14 @@ least_squares:
   welsch_c: 2.0
   
   # Non-linear optimization
-  non_linear_optimisation_type: "EM"  # Options: IRLS, LM, EM, MM
+  non_linear_optimisation_type: "GMM"  # Options: IRLS, LM, EM, GMM
 
 # Stopping criteria parameters
 stopping_criteria:
   # List of criteria to use (can include multiple)
   stopping_criteria: 
     - "nb_measurements"
-    - "GDOP"
+    # - "GDOP"
     # - "FIM"
     # - "residuals"
     # - "condition_number"
@@ -75,5 +75,10 @@ outlier:
 
 # Trajectory optimization parameters
 trajectory:
-  trajectory_optimisation_method: "GDOP"  # Options: GDOP, FIM
+  trajectory_optimisation_method: "FIM"  # Options: GDOP, FIM
   link_method: "STRICT_RETURN"  # Options: STRICT_RETURN, RETURN_TO_INITIAL, STRAIGHT_TO_WAYPOINT, RETURN_TO_CLOSEST, HYBRID_RETURN, OPTIMAL
+  bounds: [
+    [-10.0, 10.0],  # x bounds [min, max]
+    [-10.0, 10.0],  # y bounds [min, max]
+    [0.0, 100.0]      # z bounds [min, max]
+  ]

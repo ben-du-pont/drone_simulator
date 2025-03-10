@@ -148,17 +148,22 @@ class AnchorData:
         self.consecutive_distances_vector.append(float('inf'))
         self.linear_ls_weights.append([])
     
-    def update_estimator(self, new_estimator: np.ndarray, new_covariance: np.ndarray, is_non_linear: bool = False) -> None:
+    def update_estimator(self, new_estimator: np.ndarray, new_covariance: np.ndarray, estimator_type: str = "linear") -> None:
         """Update the estimator with new values."""
         self.estimator = new_estimator.copy()
         self.covariance_matrix = new_covariance.copy()
         
-        if not is_non_linear:
+        if estimator_type == "linear":
             self.estimator_rough_linear = new_estimator.copy()
             self.covariance_matrix_rough_linear = new_covariance.copy()
-        else:
+        elif estimator_type == "non_linear":
             self.estimator_rough_non_linear = new_estimator.copy()
             self.covariance_matrix_rough_non_linear = new_covariance.copy()
+        elif estimator_type == "final":
+            self.estimator = new_estimator.copy()
+            self.covariance_matrix = new_covariance.copy()
+        else:
+            raise ValueError(f"Invalid estimator type: {estimator_type}")
     
     def reset_post_estimate_measurements(self) -> None:
         """Reset measurements collected after rough estimation."""

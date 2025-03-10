@@ -78,7 +78,7 @@ class DroneSimulationNode(Node):
                 ('num_waypoints', 7),
                 ('wait_time', 2.0),
                 ('bounds', [10.0, 10.0, 10.0]),
-                ('random_seed', 42),
+                ('random_seed', 0),
                 ('mesh_resource', 'package://drone_uwb_simulator/drone_mesh.glb'),
                 ('frame_id', 'world'),
                 ('waypoint_mode', 'OPPOSITE_EDGES'),

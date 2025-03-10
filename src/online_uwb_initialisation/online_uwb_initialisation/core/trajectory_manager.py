@@ -285,10 +285,11 @@ class TrajectoryManager:
         # Update internal state
         self.current_optimal_waypoints = list(final_optimal_waypoints)
         self.current_link_waypoints = list(link_waypoints)
+
         
         logger.info(f"Computed full trajectory with {len(full_waypoints)} waypoints")
         logger.info(f"Trajectory includes {len(final_optimal_waypoints)} optimal waypoints and {len(link_waypoints)} link waypoints")
-        
+        self.remaining_waypoints = full_waypoints
         return full_waypoints, link_waypoints
     
     def generate_optimal_trajectory(self, 
