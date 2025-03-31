@@ -1,0 +1,4 @@
+
+float64[] waypoints_x
+float64[] waypoints_y
+float64[] waypoints_z

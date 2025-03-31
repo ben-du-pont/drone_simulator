@@ -1,0 +1,31 @@
+{
+  "simulation_parameters": {
+    "output_dir": "simulation_results",
+    "seed": 42,
+    "num_runs": 10,
+    "num_processes": 4,
+    "mode": "comprehensive",
+    "env_type": "random",
+    "randomize_env": false,
+    "num_anchors": 1,
+    "generate_data": false,
+    "measurements_file": "measurements.csv",
+    "trajectory_type": "spiral",
+    "num_points": 100,
+    "anchor_x": 2.0,
+    "anchor_y": 3.0,
+    "anchor_z": 0.0,
+    "constant_bias": 0.1,
+    "linear_bias": 1.02,
+    "noise_variance": 0.2,
+    "outlier_probability": 0.05
+  },
+  "results": {
+    "multi_anchor_random": "simulation_results/multi_anchor_results_20250330_183101.csv",
+    "multi_anchor_drone_halle": "simulation_results/multi_anchor_results_20250330_183101.csv",
+    "linear_methods": "simulation_results/linear_methods_results_20250330_183110.csv",
+    "stopping_criteria": "simulation_results/stopping_criteria_results_20250330_183119.csv",
+    "nonlinear_methods": "simulation_results/nonlinear_methods_results_20250330_183120.csv",
+    "trajectory_methods": "simulation_results/trajectory_methods_results_20250330_183122.csv"
+  }
+}

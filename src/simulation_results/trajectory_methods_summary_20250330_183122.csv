@@ -1,0 +1,13 @@
+trajectory_method,link_method,avg_initial_error,avg_final_error,avg_improvement,avg_num_waypoints,avg_step_size,avg_total_length,avg_optimization_time,std_initial_error,std_final_error,std_improvement,std_num_waypoints,std_step_size,std_total_length,std_optimization_time,success_count,total_runs
+GDOP,STRICT_RETURN,,,,,,,,,,,,,,,0,1
+GDOP,RETURN_TO_INITIAL,,,,,,,,,,,,,,,0,1
+GDOP,STRAIGHT_TO_WAYPOINT,,,,,,,,,,,,,,,0,1
+GDOP,RETURN_TO_CLOSEST,,,,,,,,,,,,,,,0,1
+GDOP,HYBRID_RETURN,,,,,,,,,,,,,,,0,1
+GDOP,OPTIMAL,,,,,,,,,,,,,,,0,1
+FIM,STRICT_RETURN,,,,,,,,,,,,,,,0,1
+FIM,RETURN_TO_INITIAL,,,,,,,,,,,,,,,0,1
+FIM,STRAIGHT_TO_WAYPOINT,,,,,,,,,,,,,,,0,1
+FIM,RETURN_TO_CLOSEST,,,,,,,,,,,,,,,0,1
+FIM,HYBRID_RETURN,,,,,,,,,,,,,,,0,1
+FIM,OPTIMAL,,,,,,,,,,,,,,,0,1

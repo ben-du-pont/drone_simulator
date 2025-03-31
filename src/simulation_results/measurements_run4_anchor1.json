@@ -1,0 +1,16 @@
+{
+  "anchor_position": [
+    -2.502,
+    -1.725,
+    0.223
+  ],
+  "constant_bias": 0.03872127425763265,
+  "linear_bias": 1.009444298503239,
+  "noise_variance": 0.01195942459383017,
+  "outlier_probability": 0.07132447872229951,
+  "outlier_range": [
+    0.2,
+    0.3
+  ],
+  "num_measurements": 0
+}

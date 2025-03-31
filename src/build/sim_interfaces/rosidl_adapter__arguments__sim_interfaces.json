@@ -1,0 +1,17 @@
+{
+  "package_name": "sim_interfaces",
+  "non_idl_tuples": [
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:srv/AnchorInfo.srv",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:srv/TrajectoryInfo.srv",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/StampedFloat.msg",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/DronePosition.msg",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/AnchorEstimate.msg",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/AnchorEstimates.msg",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/AnchorError.msg",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/AnchorErrors.msg",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/WaypointList.msg",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/WaypointLists.msg",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/OptimizedTrajectory.msg",
+    "/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/sim_interfaces:msg/AnchorInfo.msg"
+  ]
+}

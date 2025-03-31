@@ -1,0 +1,43 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from sim_interfaces/srv/AnchorInfo.srv
+// generated code does not contain a copyright notice
+
+
+module sim_interfaces {
+  module srv {
+    @verbatim (language="comment", text=
+      "AnchorInfo.srv")
+    struct AnchorInfo_Request {
+      uint8 structure_needs_at_least_one_member;
+    };
+    struct AnchorInfo_Response {
+      sequence<string> known_anchor_ids;
+
+      sequence<double> known_anchor_x_positions;
+
+      sequence<double> known_anchor_y_positions;
+
+      sequence<double> known_anchor_z_positions;
+
+      sequence<double> known_anchor_biases;
+
+      sequence<double> known_anchor_linear_biases;
+
+      sequence<double> known_anchor_noise_variances;
+
+      sequence<string> unknown_anchor_ids;
+
+      sequence<double> unknown_anchor_x_positions;
+
+      sequence<double> unknown_anchor_y_positions;
+
+      sequence<double> unknown_anchor_z_positions;
+
+      sequence<double> unknown_anchor_biases;
+
+      sequence<double> unknown_anchor_linear_biases;
+
+      sequence<double> unknown_anchor_noise_variances;
+    };
+  };
+};

@@ -1,0 +1,21 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from sim_interfaces/srv/TrajectoryInfo.srv
+// generated code does not contain a copyright notice
+
+
+module sim_interfaces {
+  module srv {
+    @verbatim (language="comment", text=
+      "TrajectoryInfo.srv")
+    struct TrajectoryInfo_Request {
+      uint8 structure_needs_at_least_one_member;
+    };
+    struct TrajectoryInfo_Response {
+      sequence<double> waypoints_x;
+
+      sequence<double> waypoints_y;
+
+      sequence<double> waypoints_z;
+    };
+  };
+};

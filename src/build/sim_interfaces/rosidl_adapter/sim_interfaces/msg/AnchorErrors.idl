@@ -1,0 +1,22 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from sim_interfaces/msg/AnchorErrors.msg
+// generated code does not contain a copyright notice
+
+#include "sim_interfaces/msg/AnchorError.idl"
+#include "std_msgs/msg/Header.idl"
+
+module sim_interfaces {
+  module msg {
+    struct AnchorErrors {
+      std_msgs::msg::Header header;
+
+      string anchor_id;
+
+      sim_interfaces::msg::AnchorError linear_error;
+
+      sim_interfaces::msg::AnchorError nonlinear_error;
+
+      sim_interfaces::msg::AnchorError final_error;
+    };
+  };
+};

@@ -1,0 +1,22 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from sim_interfaces/msg/AnchorEstimates.msg
+// generated code does not contain a copyright notice
+
+#include "sim_interfaces/msg/AnchorEstimate.idl"
+#include "std_msgs/msg/Header.idl"
+
+module sim_interfaces {
+  module msg {
+    struct AnchorEstimates {
+      std_msgs::msg::Header header;
+
+      string anchor_id;
+
+      sim_interfaces::msg::AnchorEstimate linear_estimate;
+
+      sim_interfaces::msg::AnchorEstimate refined_estimate;
+
+      sim_interfaces::msg::AnchorEstimate final_estimate;
+    };
+  };
+};

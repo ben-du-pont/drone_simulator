@@ -1,0 +1,2 @@
+[console_scripts]
+drone_simulator = drone_uwb_simulator.drone_simulator_node:main

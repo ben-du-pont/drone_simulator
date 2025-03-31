@@ -1,0 +1,41 @@
+running egg_info
+creating ../build/rl_optimisation/rl_optimisation.egg-info
+writing ../build/rl_optimisation/rl_optimisation.egg-info/PKG-INFO
+writing dependency_links to ../build/rl_optimisation/rl_optimisation.egg-info/dependency_links.txt
+writing requirements to ../build/rl_optimisation/rl_optimisation.egg-info/requires.txt
+writing top-level names to ../build/rl_optimisation/rl_optimisation.egg-info/top_level.txt
+writing manifest file '../build/rl_optimisation/rl_optimisation.egg-info/SOURCES.txt'
+writing manifest file '../build/rl_optimisation/rl_optimisation.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build
+creating /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib
+creating /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation
+copying rl_optimisation/UWB_RL_train.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation
+copying rl_optimisation/UWB_sim_RL_environment.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation
+copying rl_optimisation/UWB_RL_test.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation
+copying rl_optimisation/rl_dummy_env.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation
+copying rl_optimisation/__init__.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation
+running install
+running install_lib
+creating /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation
+copying /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation/UWB_RL_train.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation
+copying /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation/UWB_sim_RL_environment.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation
+copying /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation/UWB_RL_test.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation
+copying /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation/rl_dummy_env.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation
+copying /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/build/lib/rl_optimisation/__init__.py -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation
+byte-compiling /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation/UWB_RL_train.py to UWB_RL_train.cpython-310.pyc
+byte-compiling /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation/UWB_sim_RL_environment.py to UWB_sim_RL_environment.cpython-310.pyc
+byte-compiling /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation/UWB_RL_test.py to UWB_RL_test.cpython-310.pyc
+byte-compiling /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation/rl_dummy_env.py to rl_dummy_env.cpython-310.pyc
+byte-compiling /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation/__init__.py to __init__.cpython-310.pyc
+running install_data
+creating /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/share/ament_index
+creating /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/share/ament_index/resource_index
+creating /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/share/ament_index/resource_index/packages
+copying resource/rl_optimisation -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/share/ament_index/resource_index/packages
+copying package.xml -> /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/share/rl_optimisation
+running install_egg_info
+Copying ../build/rl_optimisation/rl_optimisation.egg-info to /home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/install/rl_optimisation/lib/python3.10/site-packages/rl_optimisation-0.0.0-py3.10.egg-info
+running install_scripts
+writing list of installed files to '/home/ben/Documents/master_thesis/code/uwb_online_initialisation_simulator/src/build/rl_optimisation/install.log'
